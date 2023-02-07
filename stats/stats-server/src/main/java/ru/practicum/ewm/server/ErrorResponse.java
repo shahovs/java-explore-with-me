@@ -1,4 +1,4 @@
-package ru.practicum;
+package ru.practicum.ewm.server;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

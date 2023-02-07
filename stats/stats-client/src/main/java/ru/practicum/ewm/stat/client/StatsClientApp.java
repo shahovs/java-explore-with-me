@@ -1,11 +1,10 @@
-package ru.practicum;
-
+package ru.practicum.ewm.stat.client;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class StatsServer {
+public class StatsClientApp {
     public static void main(String[] args) {
-        SpringApplication.run(StatsServer.class, args);
+        SpringApplication.run(StatsClientApp.class, args);
     }
 }
