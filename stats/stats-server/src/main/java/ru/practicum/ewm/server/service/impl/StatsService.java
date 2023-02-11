@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.ewm.server.mapper.HitMapper;
-import ru.practicum.ewm.server.model.Hit;
 import ru.practicum.ewm.server.repository.StatsRepository;
 import ru.practicum.ewm.stat.dto.HitDtoRequest;
 import ru.practicum.ewm.stat.dto.HitShortWithHitsDtoResponse;
@@ -22,8 +21,7 @@ public class StatsService {
 
     @Transactional
     public void createHit(HitDtoRequest hitDtoRequest) {
-        Hit save = statsRepository.save(HitMapper.toHit(hitDtoRequest));
-        System.out.println("\n777 Saved hit:\n" + save);
+        statsRepository.save(HitMapper.toHit(hitDtoRequest));
     }
 
     public List<HitShortWithHitsDtoResponse> getHits(String start, String end, String[] uris, Boolean unique) {
@@ -33,41 +31,31 @@ public class StatsService {
 
         return statsRepository.findAllWithHits(startTime, endTime, uris, unique);
 
-        //todo убрать из закомментированного кода логи (можно убрать и весь код)
-/*
-        List<HitShortWithHits> resultList;
+        // старая реализация (работает без ошибок):
+/*        List<HitShortWithHitsDtoResponse> resultList;
 
-        if (uris == null && !unique) {
-            System.out.println("\n777 if (uris == null && !unique)\n");
+        if (uris == null && !unique) { // первый случай
             resultList = statsRepository.getAllByRequestTimeStampIn(startTime, endTime);
-            System.out.println("\nПолучено из репозитория:\n" + resultList);
             return resultList;
         }
 
-        if (uris == null) { //uris == null && unique
-            System.out.println("\n777 if (uris == null && unique)\n");
+        if (uris == null) { // if (uris == null && unique) второй случай
             resultList = statsRepository.getAllByRequestTimeStampInUnique(startTime, endTime);
-            System.out.println("\nПолучено из репозитория:\n" + resultList);
             return resultList;
 
         }
 
-        // if uris != null
+        // if (uris != null) третий и четвертый случаи
         List<String> urisList = List.of(uris);
 
-        if (!unique) { //uris != null && !unique
-            System.out.println("\n777 if (uris != null && !unique)\n");
+        if (!unique) { // if (uris != null && !unique) // третий случай
             resultList = statsRepository.getAllByRequestTimeStampInAndUris(startTime, endTime, urisList);
-            System.out.println("\nПолучено из репозитория:\n" + resultList);
             return resultList;
         }
 
-        //uris != null && unique
-        System.out.println("\n777 if (uris != null && unique)\n");
+        // if (uris != null && unique) // четвертый случай
         resultList = statsRepository.getAllByRequestTimeStampInAndUrisUnique(startTime, endTime, urisList);
-        System.out.println("\nПолучено из репозитория:\n" + resultList);
-        return resultList;
-        */
+        return resultList;*/
     }
 
 }

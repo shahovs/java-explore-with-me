@@ -16,12 +16,9 @@ import java.util.List;
 
 @Repository
 public class StatsRepositoryImpl implements StatsRepositoryCustom {
-    //todo удалить закомментированный код (работает без него)
-//    private final StatsRepository statsRepository;
     private final EntityManager entityManager;
 
-    public StatsRepositoryImpl(/*@Lazy StatsRepository statsRepository, */EntityManager entityManager) {
-//        this.statsRepository = statsRepository;
+    public StatsRepositoryImpl(EntityManager entityManager) {
         this.entityManager = entityManager;
     }
 
