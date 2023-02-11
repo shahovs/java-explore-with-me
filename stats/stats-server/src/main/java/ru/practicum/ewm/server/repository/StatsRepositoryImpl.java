@@ -1,9 +1,8 @@
 package ru.practicum.ewm.server.repository;
 
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Repository;
 import ru.practicum.ewm.server.model.Hit;
-import ru.practicum.ewm.server.model.HitShortWithHits;
+import ru.practicum.ewm.stat.dto.HitShortWithHitsDtoResponse;
 
 import javax.persistence.EntityManager;
 import javax.persistence.TypedQuery;
@@ -17,32 +16,41 @@ import java.util.List;
 
 @Repository
 public class StatsRepositoryImpl implements StatsRepositoryCustom {
-    private final StatsRepository statsRepository;
+    //todo удалить закомментированный код (работает без него)
+//    private final StatsRepository statsRepository;
     private final EntityManager entityManager;
 
-    public StatsRepositoryImpl(@Lazy StatsRepository statsRepository, EntityManager entityManager) {
-        this.statsRepository = statsRepository;
+    public StatsRepositoryImpl(/*@Lazy StatsRepository statsRepository, */EntityManager entityManager) {
+//        this.statsRepository = statsRepository;
         this.entityManager = entityManager;
     }
 
     @Override
-    public List<HitShortWithHits> findAllWithHits(LocalDateTime startTime, LocalDateTime endTime,  String[] uris) {
+    public List<HitShortWithHitsDtoResponse> findAllWithHits(LocalDateTime startTime, LocalDateTime endTime,
+                                                             String[] uris, Boolean unique) {
         CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
-        CriteriaQuery<HitShortWithHits> criteriaQuery = criteriaBuilder.createQuery(HitShortWithHits.class);
+        CriteriaQuery<HitShortWithHitsDtoResponse> criteriaQuery =
+                criteriaBuilder.createQuery(HitShortWithHitsDtoResponse.class);
         Root<Hit> root = criteriaQuery.from(Hit.class);
 
         List<Predicate> predicates = new ArrayList<>();
-        predicates.add(criteriaBuilder.between(root.get("request_time_stamp"), startTime, endTime));
+        predicates.add(criteriaBuilder.between(root.get("requestTimeStamp"), startTime, endTime));
         if (uris != null) {
             List<String> urisList = List.of(uris);
             predicates.add(root.get("uri").in(urisList));
         }
-        criteriaQuery.multiselect(criteriaBuilder.count(root.get("uri")));
-//        predicates.add(criteriaQuery.multiselect(criteriaBuilder.count(root.get("uri"))));
         criteriaQuery.where(predicates.toArray(new Predicate[0]));
 
-        TypedQuery<HitShortWithHits> query = entityManager.createQuery(criteriaQuery);
-        List<HitShortWithHits> resultList = query.getResultList();
+        criteriaQuery.multiselect(root.get("app"), root.get("uri"),
+                unique != null && unique
+                ? criteriaBuilder.countDistinct(root.get("ip"))
+                : criteriaBuilder.count(root.get("ip")));
+
+        criteriaQuery.groupBy(root.get("uri"), root.get("app"));
+        criteriaQuery.orderBy(criteriaBuilder.desc(criteriaBuilder.literal(3)));
+
+        TypedQuery<HitShortWithHitsDtoResponse> query = entityManager.createQuery(criteriaQuery);
+        List<HitShortWithHitsDtoResponse> resultList = query.getResultList();
         return resultList;
     }
 

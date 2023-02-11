@@ -1,14 +1,15 @@
 package ru.practicum.ewm.stat.dto;
 
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 
 @Getter
 @Setter
 @ToString
-@RequiredArgsConstructor
 @AllArgsConstructor
-//@NoArgsConstructor
-public class HitDtoResponse {
+public class HitShortWithHitsDtoResponse {
     private String app;
     private String uri;
     private Long hits;

@@ -5,10 +5,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.practicum.ewm.server.model.HitShortWithHits;
 import ru.practicum.ewm.server.service.impl.StatsService;
 import ru.practicum.ewm.stat.dto.HitDtoRequest;
-import ru.practicum.ewm.stat.dto.HitDtoResponse;
+import ru.practicum.ewm.stat.dto.HitShortWithHitsDtoResponse;
 
 import java.util.List;
 
@@ -16,13 +15,14 @@ import java.util.List;
 @Slf4j
 @RequiredArgsConstructor
 public class StatsController {
+
     private final StatsService statsService;
 
     @GetMapping(path = "/stats")
-    List<HitShortWithHits> getHits(@RequestParam String start,
-                                   @RequestParam String end,
-                                   @RequestParam(required = false) String[] uris, // или defaultValue = "null" ?
-                                   @RequestParam(defaultValue = "false") Boolean unique) {
+    List<HitShortWithHitsDtoResponse> getHits(@RequestParam String start,
+                                              @RequestParam String end,
+                                              @RequestParam(required = false) String[] uris, // или defaultValue = "null" ?
+                                              @RequestParam(defaultValue = "false") Boolean unique) {
         log.info("\n\nПолучен запрос к эндпоинту: GET /stats, \nstart: {}, end: {}, uris: {}, unique: {}\n",
                 start, end, uris, unique);
         return statsService.getHits(start, end, uris, unique);
@@ -34,4 +34,5 @@ public class StatsController {
         statsService.createHit(hitDtoRequest);
         return new ResponseEntity<>(HttpStatus.CREATED);
     }
+
 }

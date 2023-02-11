@@ -1,6 +1,5 @@
 package ru.practicum.ewm.server.mapper;
 
-import ru.practicum.ewm.server.exception.ObjectNotFoundException;
 import ru.practicum.ewm.server.model.Hit;
 import ru.practicum.ewm.stat.dto.HitDtoRequest;
 
@@ -15,10 +14,6 @@ public class HitMapper {
         hit.setApp(hitDtoRequest.getApp());
         hit.setIp(hitDtoRequest.getIp());
         hit.setUri(hitDtoRequest.getUri());
-        // todo удалить проверку:
-        if (hitDtoRequest.getTimestamp() == null) {
-            throw new ObjectNotFoundException("нет времени запроса");
-        }
         hit.setRequestTimeStamp(LocalDateTime.parse(hitDtoRequest.getTimestamp(), formatter));
         return hit;
     }
