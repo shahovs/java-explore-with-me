@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import ru.practicum.ewm.server.exception.ObjectNotFoundException;
 
-@RestControllerAdvice("ru.practicum")
+@RestControllerAdvice("ru.practicum.ewm.server")
 @Slf4j
 public class ErrorHandler {
 

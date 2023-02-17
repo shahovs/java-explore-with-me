@@ -10,7 +10,9 @@ import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.DefaultUriBuilderFactory;
 import ru.practicum.ewm.stat.dto.HitDtoRequest;
+import ru.practicum.ewm.stat.dto.HitShortWithHitsDtoResponse;
 
+import java.util.List;
 import java.util.Map;
 
 public class BaseClient {
@@ -31,6 +33,17 @@ public class BaseClient {
         return makeAndSendRequest(HttpMethod.GET, path, parameters, null);
     }
 
+    // вторая версия предыдущего метода getStat (более простая, но с другим возвращаемым типом)
+    public List<HitShortWithHitsDtoResponse> getStatList(String start, String end, String[] uris, Boolean unique) {
+        Map<String, Object> parameters = Map.of(
+                "start", start, "end", end, "uris", uris, "unique", unique
+        );
+        String path = "/stats?start={start}&end={end}&uris={uris}&unique={unique}";
+
+        ResponseEntity<List> listResponseEntity = restTemplate.getForEntity(path, List.class, parameters);
+        List<HitShortWithHitsDtoResponse> resultList = listResponseEntity.getBody();
+        return resultList;
+    }
     public ResponseEntity<Object> postStat(String app, String uri, String ip, String timestamp) {
         HitDtoRequest hitDtoRequest = new HitDtoRequest();
         hitDtoRequest.setApp(app);
@@ -38,6 +51,12 @@ public class BaseClient {
         hitDtoRequest.setIp(ip);
         hitDtoRequest.setTimestamp(timestamp);
         return makeAndSendRequest(HttpMethod.POST, "/hit", null, hitDtoRequest);
+
+        // вторая версия этого метода (более простая)
+//        HttpEntity<HitDtoRequest> httpEntity = new HttpEntity<>(hitDtoRequest);
+//        ResponseEntity<Object> response = restTemplate.postForEntity("/hit", hitDtoRequest, Object.class);
+//        ResponseEntity<Object> response = restTemplate.postForEntity("/hit", hitDtoRequest, Object.class);
+//        return response;
     }
 
     private <T> ResponseEntity<Object> makeAndSendRequest(HttpMethod method, String path,
