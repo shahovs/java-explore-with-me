@@ -7,12 +7,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.mainservice.Create;
-import ru.practicum.mainservice.Update;
 import ru.practicum.mainservice.dto.*;
 import ru.practicum.mainservice.service.impl.EventServicePrivateImpl;
 
-import javax.validation.constraints.Positive;
-import javax.validation.constraints.PositiveOrZero;
 import java.util.List;
 
 @RestController

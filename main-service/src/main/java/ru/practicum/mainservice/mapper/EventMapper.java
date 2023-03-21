@@ -21,16 +21,20 @@ public interface EventMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "category", source = "eventNewDto.category")
     @Mapping(target = "initiator", source = "initiator")
+    // Категория берется с помощью метода в классе CategoryServiceAdminImpl, указанном в аннтотации к этому классу
+    // (наверное, не самый лучший способ, но оставлен здесь в качестве примера)
+    // В остальных случаях необходимые сущности передаются вторым, третьим и т.д. аргументами - например, как с User)
     Event toEntity(EventNewDto eventNewDto, User initiator);
 
     EventFullDto toEventFullDto(Event event);
 
-    @Mapping(target = "confirmedRequests", source = "confirmedRequests")
-    EventFullDto toEventFullDto(Event event, Long confirmedRequests);
+//    @Mapping(target = "confirmedRequests", source = "event.confirmedRequests")
+//    @Mapping(target = "views", source = "views")
+//    EventFullDto toEventFullDto(Event event, Long views);
 
     @Mapping(target = "confirmedRequests", source = "confirmedRequests")
-    @Mapping(target = "views", source = "hits")
-    EventFullDto toEventFullDto(Event event, Long confirmedRequests, Long hits);
+    @Mapping(target = "views", source = "views")
+    EventFullDto toEventFullDto(Event event, Long confirmedRequests, Long views);
 
 
 //    @Mapping(target = "confirmedRequests", ignore = true)
@@ -40,7 +44,11 @@ public interface EventMapper {
     @Mapping(target = "confirmedRequests", source = "confirmedRequests")
     EventShortDto toEventShortDto(Event event, Long confirmedRequests);
 
-//    @Mapping(target = "confirmedRequests", ignore = true)
+    @Mapping(target = "confirmedRequests", source = "confirmedRequests")
+    @Mapping(target = "views", source = "views")
+    EventShortDto toEventShortDto(Event event, Long confirmedRequests, Long views);
+
+    //    @Mapping(target = "confirmedRequests", ignore = true)
 //    @Mapping(target = "views", ignore = true)
     List<EventShortDto> toEventShortDto(List<Event> events);
 

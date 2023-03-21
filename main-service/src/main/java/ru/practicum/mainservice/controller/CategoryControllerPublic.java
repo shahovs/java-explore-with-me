@@ -36,7 +36,7 @@ public class CategoryControllerPublic {
 
     @GetMapping(path = "/{catId}")
     ResponseEntity<CategoryDto> getCategoryById(@PathVariable Long catId) {
-        log.info("\n\nПолучен запрос к эндпоинту: GET /categories/{catId}, catId={}", catId);
+        log.info("\n\nПолучен запрос к эндпоинту: GET /categories/{}", catId);
         CategoryDto result = categoryServicePublic.getCategoryById(catId);
         return new ResponseEntity<>(result, HttpStatus.OK);
     }

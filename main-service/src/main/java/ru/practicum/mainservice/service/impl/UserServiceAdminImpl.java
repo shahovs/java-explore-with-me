@@ -35,8 +35,8 @@ public class UserServiceAdminImpl {
     public UserDto saveUser(UserDto userDto) {
         User user = userMapper.toEntity(userDto);
         try {
-            User savedUser = userRepository.save(user);
-            return userMapper.toDto(savedUser);
+            userRepository.save(user);
+            return userMapper.toDto(user);
         } catch (DataIntegrityViolationException e) {
             throw new DuplicateException("Пользователь с таким именем или email уже существует");
         }

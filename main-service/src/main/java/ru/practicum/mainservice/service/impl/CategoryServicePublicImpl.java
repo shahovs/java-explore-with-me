@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 public class CategoryServicePublicImpl {
 
     private final CategoryRepository categoryRepository;
+    // в категориях используем ModelMapper (в учебных целях), а для остальных сущностей используем org.mapstruct.Mapper
     private final ModelMapper modelMapper;
 
     public List<CategoryDto> getAllCategories(Integer fromElement, Integer size) {

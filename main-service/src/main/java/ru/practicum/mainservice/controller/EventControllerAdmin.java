@@ -36,8 +36,8 @@ public class EventControllerAdmin {
             @RequestParam(defaultValue = "10") int size,
             HttpServletRequest request) {
         log.info("\n\nПолучен запрос к эндпоинту: GET admin/events\nusers={}, categories={}, states={}\n" +
-                        "rangeStart={}, rangeEnd={}\nfrom={}, size={}", users, categories, states,
-                rangeStart, rangeEnd, from, size);
+                        "rangeStart={}, rangeEnd={}\nfrom={}, size={}",
+                users, categories, states, rangeStart, rangeEnd, from, size);
         List<EventFullDto> result = eventServiceAdmin.getEvents(users, categories, states, rangeStart, rangeEnd,
                 from, size);
         return new ResponseEntity<>(result, HttpStatus.OK);

@@ -1,8 +1,6 @@
 package ru.practicum.mainservice.dto;
 
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 import ru.practicum.mainservice.Create;
 import ru.practicum.mainservice.Update;
 import ru.practicum.mainservice.model.ParticipationRequestStatus;
@@ -13,6 +11,8 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @ToString
+@NoArgsConstructor
+@AllArgsConstructor
 public class ParticipationRequestDto {
 
     private Long id;

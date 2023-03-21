@@ -18,12 +18,13 @@ import ru.practicum.mainservice.service.impl.CategoryServiceAdminImpl;
 @Validated
 public class CategoryControllerAdmin {
 
-    private final CategoryServiceAdminImpl categoryService;
+    private final CategoryServiceAdminImpl categoryServiceAdmin;
 
     @PostMapping
     ResponseEntity<CategoryDto> saveCategory(@Validated({Create.class}) @RequestBody CategoryDto categoryDto) {
-        log.info("\n\nПолучен запрос к эндпоинту: POST /admin/categories, \nСоздан объект из тела запроса:\n'{}'", categoryDto);
-        CategoryDto result = categoryService.saveCategory(categoryDto);
+        log.info("\n\nПолучен запрос к эндпоинту: POST /admin/categories" +
+                "\nСоздан объект из тела запроса:\n'{}'", categoryDto);
+        CategoryDto result = categoryServiceAdmin.saveCategory(categoryDto);
         return new ResponseEntity<>(result, HttpStatus.CREATED);
     }
 
@@ -32,14 +33,14 @@ public class CategoryControllerAdmin {
                                                @Validated({Update.class}) @RequestBody CategoryDto categoryDto) {
         log.info("\n\nПолучен запрос к эндпоинту: PATCH /admin/categories/{}\n" +
                 "Создан объект из тела запроса:\n'{}'", catId, categoryDto);
-        CategoryDto result = categoryService.updateCategory(catId, categoryDto);
+        CategoryDto result = categoryServiceAdmin.updateCategory(catId, categoryDto);
         return new ResponseEntity<>(result, HttpStatus.OK);
     }
 
     @DeleteMapping(path = "/{catId}")
     ResponseEntity<Void> deleteCategory(@PathVariable Long catId) {
         log.info("\n\nПолучен запрос к эндпоинту: DELETE /admin/categories/{}", catId);
-        categoryService.deleteCategory(catId);
+        categoryServiceAdmin.deleteCategory(catId);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 

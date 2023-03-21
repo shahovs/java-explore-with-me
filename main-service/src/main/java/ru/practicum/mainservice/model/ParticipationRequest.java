@@ -1,6 +1,7 @@
 package ru.practicum.mainservice.model;
 
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 
@@ -9,6 +10,7 @@ import java.time.LocalDateTime;
 
 @Getter
 @Setter
+@NoArgsConstructor
 @ToString
 @Entity
 @Table(name = "participation_requests")
@@ -32,5 +34,16 @@ public class ParticipationRequest {
     @Enumerated(EnumType.STRING)
     @Column(length = 16)
     private ParticipationRequestStatus status;
+
+    public ParticipationRequest(User requester, Event event) {
+        this.requester = requester;
+        this.event = event;
+        created = LocalDateTime.now();
+        if (event.getRequestModeration()) {
+            status = ParticipationRequestStatus.PENDING;
+        } else {
+            status = ParticipationRequestStatus.CONFIRMED;
+        }
+    }
 
 }

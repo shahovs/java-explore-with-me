@@ -22,7 +22,7 @@ public class ParticipationRequestControllerPrivate {
 
     @GetMapping
     ResponseEntity<List<ParticipationRequestDto>> getPartRequestsByUser(@PathVariable Long requesterId) {
-        log.info("\n\nПолучен запрос к эндпоинту: GET /users/{requesterId}/requests, requesterId: {}", requesterId);
+        log.info("\n\nПолучен запрос к эндпоинту: GET /users/{}/requests", requesterId);
         List<ParticipationRequestDto> result = partRequestServicePrivate.getPartRequestsByUser(requesterId);
         return new ResponseEntity<>(result, HttpStatus.OK);
     }

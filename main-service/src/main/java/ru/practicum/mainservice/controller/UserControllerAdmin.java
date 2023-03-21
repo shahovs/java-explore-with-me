@@ -27,7 +27,7 @@ public class UserControllerAdmin {
     ResponseEntity<List<UserDto>> getAllUsersByIds(@RequestParam(name = "ids", required = false) List<Long> userIds,
                                     @PositiveOrZero @RequestParam(name = "from", defaultValue = "0") Integer fromElement,
                                     @Positive @RequestParam(defaultValue = "10") Integer size) {
-        log.info("\n\nПолучен запрос к эндпоинту: GET /admin/users, \nuserIds={}, from={}, size={}",
+        log.info("\n\nПолучен запрос к эндпоинту: GET /admin/users\nuserIds={}, from={}, size={}",
                 userIds, fromElement, size);
         List<UserDto> result = userService.getAllUsersByIds(userIds, fromElement, size);
         return new ResponseEntity<>(result, HttpStatus.OK);
@@ -35,14 +35,14 @@ public class UserControllerAdmin {
 
     @PostMapping
     ResponseEntity<UserDto> saveUser(@Validated({Create.class}) @RequestBody UserDto userDto) {
-        log.info("\n\nПолучен запрос к эндпоинту: POST /admin/users, \nСоздан объект из тела запроса:\n'{}'", userDto);
+        log.info("\n\nПолучен запрос к эндпоинту: POST /admin/users\nСоздан объект из тела запроса:\n'{}'", userDto);
         UserDto result = userService.saveUser(userDto);
         return new ResponseEntity<>(result, HttpStatus.CREATED);
     }
 
     @DeleteMapping(path = "/{userId}")
     ResponseEntity<Void> deleteUser(@PathVariable Long userId) {
-        log.info("\n\nПолучен запрос к эндпоинту: DELETE /admin/users/{userId}, userId = {}", userId);
+        log.info("\n\nПолучен запрос к эндпоинту: DELETE /admin/users/{}", userId);
         userService.deleteUser(userId);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }

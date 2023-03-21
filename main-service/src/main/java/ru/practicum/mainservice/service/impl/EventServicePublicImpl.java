@@ -12,16 +12,15 @@ import ru.practicum.mainservice.dto.EventFullDto;
 import ru.practicum.mainservice.dto.EventShortDto;
 import ru.practicum.mainservice.exception.ObjectNotFoundException;
 import ru.practicum.mainservice.exception.ValidateException;
-import ru.practicum.mainservice.model.EventState;
-import ru.practicum.mainservice.model.ParticipationRequestStatus;
-import ru.practicum.mainservice.model.QEvent;
-import ru.practicum.mainservice.model.QParticipationRequest;
+import ru.practicum.mainservice.mapper.EventMapper;
+import ru.practicum.mainservice.model.*;
 import ru.practicum.mainservice.repository.EventRepository;
 
 import javax.persistence.EntityManager;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -29,35 +28,43 @@ import java.util.*;
 public class EventServicePublicImpl {
 
     private final EventRepository eventRepository;
+    private final EventMapper eventMapper;
+
     private final StatsClient statsClient;
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private final EntityManager entityManager;
 
     public EventFullDto getEventById(Long eventId, String ip) {
-        EventFullDto eventFullDto = findEventFullDto(eventId);
-        validateEvent(eventFullDto);
+        Event event = eventRepository.findById(eventId).orElseThrow(
+                () -> new ObjectNotFoundException("Событие не найдено"));
+        if (!Objects.equals(event.getState(), EventState.PUBLISHED)) {
+            throw new ValidateException("Событие должно быть опубликовано");
+        }
+        Long confirmedRequests = event.getRequests().stream()
+                .filter(request -> Objects.equals(request.getStatus(), ParticipationRequestStatus.CONFIRMED))
+                .count();
         // получаем количество просмотров события (из статистики)
         Long views = getViewsOfOneEvent(eventId);
-        eventFullDto.setViews(views);
         // отправляем в статистику информацию о просмотре события
         statsClient.postStatMonolit("emw", "/events/" + eventId, ip,
                 LocalDateTime.now().format(DATE_TIME_FORMATTER));
+        EventFullDto eventFullDto = eventMapper.toEventFullDto(event, confirmedRequests, views);
         return eventFullDto;
     }
 
-    EventFullDto findEventFullDto(Long eventId) {
-        List<EventFullDto> resultList = eventRepository.findEventsFullDto(Collections.singletonList(eventId));
-        if (resultList.size() == 1) {
-            return resultList.get(0);
-        }
-        throw new ObjectNotFoundException("Событие не найдено или недоступно");
-    }
+//    EventFullDto findEventFullDto(Long eventId) {
+//        List<EventFullDto> resultList = eventRepository.findEventsFullDto(Collections.singletonList(eventId));
+//        if (resultList.size() == 1) {
+//            return resultList.get(0);
+//        }
+//        throw new ObjectNotFoundException("Событие не найдено или недоступно");
+//    }
 
-    private void validateEvent(EventFullDto eventFullDto) {
-        if (!eventFullDto.getState().equals(EventState.PUBLISHED)) {
-            throw new ValidateException("Событие должно быть опубликовано");
-        }
-    }
+//    private void validateEvent(EventFullDto eventFullDto) {
+//        if (!eventFullDto.getState().equals(EventState.PUBLISHED)) {
+//            throw new ValidateException("Событие должно быть опубликовано");
+//        }
+//    }
 
     // запрашиваем в статистике количество просмотров
     Long getViewsOfOneEvent(Long eventId) {
@@ -89,71 +96,36 @@ public class EventServicePublicImpl {
                                                   String sort, int from, int size, String ip) {
         // подготавливаем переменные для формирования запроса
         QEvent qEvent = QEvent.event;
-        QParticipationRequest qParticipationRequest = QParticipationRequest.participationRequest;
+//        QParticipationRequest qParticipationRequest = QParticipationRequest.participationRequest;
+//        QUser qUser = QUser.user;
+//        QCategory qCategory = QCategory.category;
         JPAQueryFactory factory = new JPAQueryFactory(entityManager);
 
-        // todo есть идея вернуться к первончальному замыслу, когда мы получаем обертку (класс), внутри
-        // которой два поля - сущность Event и количество запросов
-        // затем уже эту обертку обрабатываем (переделываем Event in dto, добавляем запросы и просмотры
-        // в этом случае не придется многократно перечислять все поля в select для контруктора dto
-        // и потом повторять их при преобразовании tuple in dto
         // Отдельный момент. Вместо обертки можно использовать проекцию (интерфейс без создания класса)
         // см. 4.1 https://www.baeldung.com/jpa-queries-custom-result-with-aggregation-functions
         // (класс, реализующий интерфейс в этом случае спринг сделает сам)
+// todo как сделать, чтобы получался один запрос в базу вместо 4 отдельных (Event, User, Category, PartRequest)?
+        JPAQuery<Event> query = factory.selectFrom(qEvent)
+//                .join(qUser).on(qUser.id.eq(qEvent.initiator.id))
+//                .join(qCategory).on(qCategory.id.eq(qEvent.category.id))
+//                .leftJoin(qParticipationRequest).on(qParticipationRequest.event.eq(qEvent))
+                .where(qEvent.state.eq(EventState.PUBLISHED));
 
-
-        // основная часть запроса (select, from, join, основные условия - PUBLISHED, CONFIRMED)
-        JPAQuery<Tuple> query = factory
-                .select(qEvent.id, qEvent.title, qEvent.annotation,
-                        qEvent.category.id, qEvent.category.name,
-                        qEvent.eventDate, qEvent.paid,
-                        qEvent.initiator.id, qEvent.initiator.name,
-                        qParticipationRequest.count())
-                .from(qEvent)
-                .leftJoin(qParticipationRequest).on(qParticipationRequest.event.eq(qEvent))
-                .where(qEvent.state.eq(EventState.PUBLISHED))
-                .where(qParticipationRequest.status.eq(ParticipationRequestStatus.CONFIRMED)
-                        .or(qParticipationRequest.isNull()));
         // добавляем условия, полученные в запросе (даты, текст, категории, платность участия)
         addDates(rangeStart, rangeEnd, query, qEvent);
         addTextCategoriesAndPaid(text, categories, paid, query, qEvent);
-        // группируем (по событиям - у одного события может быть несколько строк - по кол-ву запросов на участие)
-        query.groupBy(qEvent, qEvent.category.name, qEvent.initiator.name);
-        // если нужно, то оставляем только те события, у которых не исчерпан лимит запросов на участие
-        if (onlyAvailable) {
-            query.having(qParticipationRequest.count().lt(qEvent.participantLimit));
-        }
-        // сортируем (вынести в отдельный метод по возможности)
-        if (sort == null || sort.equals("EVENT_DATE")) {
+
+        if (sort != null && sort.equals("EVENT_DATE")) {
             query.orderBy(qEvent.eventDate.asc());
-        } else if (!sort.equals("VIEWS")) {
-            // если sort == VIEWS, то сортировку будем делать в конце
-            throw new IllegalArgumentException("Способ сортировки должен быть EVENT_DATE, VIEWS или null");
         }
+
         // применяем from, size
         query.offset(from).limit(size); // query.restrict() ???
         // делаем запрос
-        List<Tuple> tuples = query.fetch();
-        // преобразуем результат в список dto и одновременно получаем список id для запроса статистики
-        List<Long> eventIds = new ArrayList<>();
-        List<EventShortDto> eventDtos = new ArrayList<>();
-        for (Tuple tuple : tuples) {
-            eventDtos.add(new EventShortDto(
-                    tuple.get(qEvent.id), tuple.get(qEvent.title), tuple.get(qEvent.annotation),
-                    tuple.get(qEvent.category.id), tuple.get(qEvent.category.name),
-                    tuple.get(qEvent.eventDate), tuple.get(qEvent.paid),
-                    tuple.get(qEvent.initiator.id), tuple.get(qEvent.initiator.name),
-                    tuple.get(qParticipationRequest.count())
-            ));
-            eventIds.add(tuple.get(qEvent.id));
-        }
-        // запрашиваем просмотры в сервисе статистики (будут получены только те события, у которые были просмотры)
-        Map<Long, Long> viewsMap = getViews(eventIds);
-        // добавляем просмотры в dto
-        for (EventShortDto dto : eventDtos) {
-            Long views = viewsMap.get(dto.getId());
-            dto.setViews(Objects.requireNonNullElse(views, 0L));
-        }
+        List<Event> events = query.fetch();
+
+        List<EventShortDto> eventDtos = getEventShortDtos(events, onlyAvailable);
+
         // если нужно, делаем сортировку по просмотрам (но тогда ломается пагинация)
         // а по другому никак - только добавлять views в таблицу events, но по заданию должно быть так:
         // "сортировка событий должна быть по кол-ву просмотров, которое будет запрашиваться в сервисе статистики";
@@ -162,6 +134,7 @@ public class EventServicePublicImpl {
         // (метод клиента статистики не преполагает сортировки и пагинации)
         // потом вручную делать сортировку и пагинацию и второй запрос в events для получения отобранных событий
         // то есть получится три запроса вместо двух, причем два из них без ограничения (size) результатов
+        // (аналогичная проблема и с onlyAvailable)
         if (sort != null && sort.equals("VIEWS")) {
             eventDtos.sort(Comparator.comparing(EventShortDto::getViews).reversed());
         }
@@ -171,13 +144,44 @@ public class EventServicePublicImpl {
         return eventDtos;
     }
 
-    // todo сделать универсальный метод, который обрабатывает как один id (лист-одиночку), так и неск.
-    // но еще раз обдумать, есть ли смысл - скорее всего, нет
-    // (но сначала избавиться от дат в виде строк (поменять метод клиента))
-    // тогда можно будет убрать второй метод getViewsOfOneEvent
-    // для этого делаем if (list.size == 0) {return new HashMap}, else if(list.size==1){
-    // String[] uri = {"/events/" + eventId}; }
-    // else { код для случая нескольких id }
+    List<EventShortDto> getEventShortDtos(List<Event> events, Boolean onlyAvailable) {
+        List<EventShortDto> eventDtos = new ArrayList<>();
+
+        // запрашиваем просмотры в сервисе статистики (будут получены только те события, у которых были просмотры)
+        Map<Long, Long> viewsMap = getViewsMap(events);
+
+        for (Event event : events) {
+            long views = viewsMap.getOrDefault(event.getId(), 0L);
+            int participantLimit = event.getParticipantLimit();
+            long confirmedRequests = getConfirmedRequests(event, participantLimit);
+            // добавляем в dtos либо все события (!onlyAvailable), либо те, у которых нет лимита участия,
+            // либо те, у которых не исчерпан лимит участия
+            if (!onlyAvailable || (participantLimit == 0) || ((participantLimit - confirmedRequests) > 0)) {
+                eventDtos.add(eventMapper.toEventShortDto(event, confirmedRequests, views));
+            }
+        }
+        return eventDtos;
+    }
+
+    static long getConfirmedRequests(Event event, int participantLimit) {
+        long confirmedRequests = 0;
+        if (participantLimit != 0) {
+            List<ParticipationRequest> requests = event.getRequests();
+            confirmedRequests = requests.stream()
+                    .filter(request -> Objects.equals(request.getStatus(), ParticipationRequestStatus.CONFIRMED))
+                    .count();
+        }
+        return confirmedRequests;
+    }
+
+    Map<Long, Long> getViewsMap(List<Event> events) {
+        List<Long> eventIds = events.stream()
+                .map(Event::getId)
+                .collect(Collectors.toList());
+        Map<Long, Long> viewsMap = getViews(eventIds);
+        return viewsMap;
+    }
+
     Map<Long, Long> getViews(List<Long> eventIds) {
         if (eventIds == null || eventIds.size() == 0) {
             return null;
@@ -207,7 +211,7 @@ public class EventServicePublicImpl {
     }
 
     private void addDates(LocalDateTime rangeStart, LocalDateTime rangeEnd,
-                          JPAQuery<Tuple> query, QEvent qEvent) {
+                          JPAQuery<Event> query, QEvent qEvent) {
         // если не указана ни одна дата
         if (rangeStart == null && rangeEnd == null) {
             query.where(qEvent.eventDate.after(LocalDateTime.now()));
@@ -232,7 +236,7 @@ public class EventServicePublicImpl {
     }
 
     private void addTextCategoriesAndPaid(String text, List<Long> categories, Boolean paid,
-                                          JPAQuery<Tuple> query, QEvent qEvent) {
+                                          JPAQuery<Event> query, QEvent qEvent) {
         if (text != null) {
             text = text.toLowerCase();
             query.where(qEvent.annotation.toLowerCase().contains(text)

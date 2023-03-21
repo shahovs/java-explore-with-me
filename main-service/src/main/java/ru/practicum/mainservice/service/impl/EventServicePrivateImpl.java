@@ -42,63 +42,33 @@ public class EventServicePrivateImpl {
     private final EventServicePublicImpl eventServicePublic;
 
     public EventFullDto getEventById(Long initiatorId, Long eventId) {
-        EventFullDto eventFullDto = eventServicePublic.findEventFullDto(eventId);
-
-        if (!initiatorId.equals(eventFullDto.getInitiator().getId())) {
+        Event event = eventRepository.findById(eventId).orElseThrow(
+                () -> new ObjectNotFoundException("Событие не найдено"));
+        if (!Objects.equals(initiatorId, event.getInitiator().getId())) {
             throw new ValidateException("Событие может запрашивать только создавший его пользователь");
         }
-
+        Long confirmedRequests = event.getRequests().stream()
+                .filter(request -> Objects.equals(request.getStatus(), ParticipationRequestStatus.CONFIRMED))
+                .count();
         // добавляем количество просмотров события (из статистики)
         Long views = eventServicePublic.getViewsOfOneEvent(eventId);
-        eventFullDto.setViews(views);
+        EventFullDto eventFullDto = eventMapper.toEventFullDto(event, confirmedRequests, views);
         return eventFullDto;
     }
 
     public List<EventShortDto> getEventsByUser(Long initiatorId, int from, int size) {
         // подготавливаем переменные для формирования запроса
         QEvent qEvent = QEvent.event;
-        QParticipationRequest qParticipationRequest = QParticipationRequest.participationRequest;
         JPAQueryFactory factory = new JPAQueryFactory(entityManager);
 
-        // основная часть запроса (select, from, join, основные условия - initiatorId, CONFIRMED)
-        JPAQuery<Tuple> query = factory
-                .select(qEvent.id, qEvent.title, qEvent.annotation,
-                        qEvent.category.id, qEvent.category.name,
-                        qEvent.eventDate, qEvent.paid,
-                        qEvent.initiator.id, qEvent.initiator.name,
-                        qParticipationRequest.count())
-                .from(qEvent)
-                .leftJoin(qParticipationRequest).on(qParticipationRequest.event.eq(qEvent))
+        List<Event> events = factory
+                .selectFrom(qEvent)
                 .where(qEvent.initiator.id.eq(initiatorId))
-                .where(qParticipationRequest.status.eq(ParticipationRequestStatus.CONFIRMED)
-                        .or(qParticipationRequest.isNull()));
-        // группируем (по событиям - у одного события может быть несколько строк - по кол-ву запросов на участие)
-        query.groupBy(qEvent, qEvent.category.name, qEvent.initiator.name);
-        // применяем from, size
-        query.offset(from).limit(size);
-        // делаем запрос
-        List<Tuple> tuples = query.fetch();
+                .offset(from)
+                .limit(size)
+                .fetch();
 
-        // преобразуем результат в список dto и одновременно получаем список id для запроса статистики
-        List<Long> eventIds = new ArrayList<>();
-        List<EventShortDto> eventDtos = new ArrayList<>();
-        for (Tuple tuple : tuples) {
-            eventDtos.add(new EventShortDto(
-                    tuple.get(qEvent.id), tuple.get(qEvent.title), tuple.get(qEvent.annotation),
-                    tuple.get(qEvent.category.id), tuple.get(qEvent.category.name),
-                    tuple.get(qEvent.eventDate), tuple.get(qEvent.paid),
-                    tuple.get(qEvent.initiator.id), tuple.get(qEvent.initiator.name),
-                    tuple.get(qParticipationRequest.count())
-            ));
-            eventIds.add(tuple.get(qEvent.id));
-        }
-        // запрашиваем просмотры в сервисе статистики (будут получены только те события, у которые были просмотры)
-        Map<Long, Long> viewsMap = eventServicePublic.getViews(eventIds);
-        // добавляем просмотры в dto
-        for (EventShortDto dto : eventDtos) {
-            Long views = viewsMap.get(dto.getId());
-            dto.setViews(Objects.requireNonNullElse(views, 0L));
-        }
+        List<EventShortDto> eventDtos = eventServicePublic.getEventShortDtos(events, false);
         return eventDtos;
     }
 
@@ -109,13 +79,14 @@ public class EventServicePrivateImpl {
         }
         User initiator = userRepository.findById(initiatorId).orElseThrow(
                 () -> new ObjectNotFoundException("Инициатор события не найден"));
-//        Category category = categoryRepository.findById(eventNewDto.getCategory()).orElseThrow(
-//                () ->  new ObjectNotFoundException("Категория для события не найдена"));
         Event event = eventMapper.toEntity(eventNewDto, initiator);
         event.setCreatedOn(LocalDateTime.now());
         event.setState(EventState.PENDING);
-        Event savedEvent = eventRepository.save(event);
-        return eventMapper.toEventFullDto(savedEvent);
+        // А можно ли как-то добавить в базу новую сущность Event,
+        // не запрашивая из базы User и Category, а передав только их id (которые к нам пришли вместе с dto)?
+        // Так чтобы не писать запрос вручную, конечно.
+        eventRepository.save(event);
+        return eventMapper.toEventFullDto(event);
     }
 
     @Transactional
@@ -126,10 +97,10 @@ public class EventServicePrivateImpl {
         changeStateAction(updateRequestDto, event);
         changeCategory(updateRequestDto, event);
         changeUsualFields(updateRequestDto, event);
-        Event changedEvent = eventRepository.save(event);
+        eventRepository.save(event);
         // заполнять в dto поля confirmedRequests и views не требуется,
         // так как изменять событие можно только до его публикации (EventState == PENDING или CANCELED)
-        EventFullDto result = eventMapper.toEventFullDto(changedEvent);
+        EventFullDto result = eventMapper.toEventFullDto(event);
         return result;
     }
 
@@ -206,8 +177,8 @@ public class EventServicePrivateImpl {
         if (!Objects.equals(initiatorId, event.getInitiator().getId())) {
             throw new ValidateException("Запросы на участие в событии может получить только инициатор события");
         }
-        List<ParticipationRequest> allByEvent = requestRepository.findAllByEvent(event);
-        List<ParticipationRequestDto> resultList = participationRequestMapper.toDtos(allByEvent);
+        List<ParticipationRequest> requests = event.getRequests();
+        List<ParticipationRequestDto> resultList = participationRequestMapper.toDtos(requests);
         return resultList;
     }
 
@@ -217,52 +188,52 @@ public class EventServicePrivateImpl {
 
         Event event = eventRepository.findById(eventId).orElseThrow(
                 () -> new ObjectNotFoundException("Событие не найдено"));
-        int participantLimit = event.getParticipantLimit();
 
-        // если для события лимит заявок равен 0  отключена пре-модерация заявок,
-        // то подтверждение (/отклонение) заявок не требуется
-        if (!event.getRequestModeration() || participantLimit == 0) {
+        // если лимит заявок == 0 или отключена пре-модерация заявок, то подтверждение (/отклонение) заявок не требуется
+        if (!event.getRequestModeration() || event.getParticipantLimit() == 0) {
             return null;
         }
 
-        // статус можно изменить только у заявок, находящихся в состоянии ожидания
-        List<ParticipationRequest> allRequestsByIds = partRequestRepository.findAllById(updateRequestDto.getRequestIds());
-        boolean notPending = allRequestsByIds.stream()
-                .anyMatch(participationRequest ->
-                        !participationRequest.getStatus().equals(ParticipationRequestStatus.PENDING));
-        if (notPending) {
-            throw new ValidateException("Не все заявки находятся в состоянии ожидания");
+        List<ParticipationRequest> requests = event.getRequests();
+        validateRequests(requests);
+
+        switch (updateRequestDto.getStatus()) {
+            case CONFIRMED:
+                confirmRequests(requests, event);
+                break;
+            case REJECTED:
+                requests = requests.stream()
+                        .peek(request -> request.setStatus(ParticipationRequestStatus.REJECTED))
+                        .collect(Collectors.toList());
+                break;
+            default:
+                throw new ValidateException("Ошибка. Статус должен быть CONFIRMED или REJECTED");
         }
 
-        // если передан статус REJECTED, то отклоняем заявки
-        if (updateRequestDto.getStatus().equals(ParticipationRequestStatus.REJECTED)) {
-            allRequestsByIds = allRequestsByIds.stream()
-                    .peek(participationRequest -> participationRequest.setStatus(ParticipationRequestStatus.REJECTED))
-                    .collect(Collectors.toList());
-            // если же передан статус CONFIRMED, то одобряем заявки
-        } else if (updateRequestDto.getStatus().equals(ParticipationRequestStatus.CONFIRMED)) {
-            confirmRequests(allRequestsByIds, event);
-        } else {
-            throw new ValidateException("Ошибка. Статус должен быть CONFIRMED или REJECTED");
-        }
+        partRequestRepository.saveAll(requests);
 
-        // сохраняем результат (заявки с измененными статусами)
-        List<ParticipationRequest> savedPartRequests = partRequestRepository.saveAll(allRequestsByIds);
-
-        // преобразовываем в dto
-        Map<Boolean, List<ParticipationRequestDto>> requestDtos = savedPartRequests.stream()
+        Map<Boolean, List<ParticipationRequestDto>> requestDtos = requests.stream()
                 .map(participationRequestMapper::toDto)
                 .collect(Collectors.partitioningBy(
-                        request -> request.getStatus().equals(ParticipationRequestStatus.CONFIRMED)));
+                        request -> Objects.equals(request.getStatus(), ParticipationRequestStatus.CONFIRMED)));
 
         return new EventRequestStatusUpdateResultDto(requestDtos.get(true), requestDtos.get(false));
     }
 
-    private void confirmRequests(List<ParticipationRequest> allRequestsByIds, Event event) {
-        int participantLimit = event.getParticipantLimit();
+    private static void validateRequests(List<ParticipationRequest> requests) {
+        // статус можно изменить только у заявок, находящихся в состоянии ожидания
+        boolean notPending = requests.stream()
+                .anyMatch(request ->
+                        !Objects.equals(request.getStatus(), ParticipationRequestStatus.PENDING));
+        if (notPending) {
+            throw new ValidateException("Не все заявки находятся в состоянии ожидания");
+        }
+    }
 
+    private void confirmRequests(List<ParticipationRequest> requests, Event event) {
         // нельзя подтвердить заявку, если уже достигнут лимит по заявкам на данное событие
         Integer requestCount = partRequestRepository.countAllByEventAndStatus(event, ParticipationRequestStatus.CONFIRMED);
+        int participantLimit = event.getParticipantLimit();
         // тесты требуют учитывать все поданные заявки, а не только те, которые уже подтвердили
         // (причем даже ранее отклонненные заявки будут учитываться в расчете, что явно не верно)
 //        Integer requestCount = partRequestRepository.countAllByEvent(event);
@@ -273,7 +244,7 @@ public class EventServicePrivateImpl {
         // далее подтверждаем заявки
         // (если при этом лимит будет исчерпан, то все неподтверждённые заявки необходимо отклонить)
         int currentLimit = participantLimit - requestCount;
-        for (ParticipationRequest request : allRequestsByIds) {
+        for (ParticipationRequest request : requests) {
             if (currentLimit > 0) {
                 request.setStatus(ParticipationRequestStatus.CONFIRMED);
             } else {

@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.mainservice.dto.EventFullDto;
+import ru.practicum.mainservice.dto.EventShortDto;
 import ru.practicum.mainservice.dto.EventStateAction;
 import ru.practicum.mainservice.dto.EventUpdateAdminRequestDto;
 import ru.practicum.mainservice.exception.ConflictException;
@@ -36,7 +37,7 @@ public class EventServiceAdminImpl {
     private final CategoryRepository categoryRepository;
     private final EventServicePublicImpl eventServicePublic;
     private final EventMapper eventMapper;
-    @PersistenceContext
+    @PersistenceContext // todo Будет ли работать без этой аннотации и что она означает?
     private final EntityManager entityManager;
 
     public List<EventFullDto> getEvents(List<Long> users, List<Long> categories, List<EventState> states,
@@ -44,23 +45,13 @@ public class EventServiceAdminImpl {
                                         int from, int size) {
         // подготавливаем данные
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-        CriteriaQuery<EventFullDto> cq = cb.createQuery(EventFullDto.class);
-        // from join
+        CriteriaQuery<Event> cq = cb.createQuery(Event.class);
         Root<Event> root = cq.from(Event.class);
-        Join<Event, ParticipationRequest> requests = root.join("requests", JoinType.LEFT);
-
-        // указываем что брать (select)
-        cq.multiselect(
-                root.get("id"), root.get("title"), root.get("annotation"), root.get("description"),
-                root.get("category").get("id"), root.get("category").get("name"),
-                root.get("eventDate"), root.get("location"), root.get("paid"), root.get("participantLimit"),
-                root.get("requestModeration"), root.get("createdOn"), root.get("publishedOn"),
-                root.get("initiator").get("id"), root.get("initiator").get("name"),
-                root.get("state"), cb.count(requests));
+        cq.select(root);
 
         // создаем предикаты для where
         List<Predicate> predicates = new ArrayList<>();
-        // если массив пустой (не null, а ноль элементов), то как тогда ?
+        // todo если массив пустой (не null, а ноль элементов), то как тогда ?
         if (users != null) {
             predicates.add(root.get("initiator").in(users));
         }
@@ -79,29 +70,26 @@ public class EventServiceAdminImpl {
             predicates.add(cb.lessThanOrEqualTo(root.get("eventDate"), rangeEnd));
         }
 
-        cq.where(predicates.toArray(new Predicate[0]));
+        cq.where(predicates.toArray(new Predicate[0])); // todo (new Predicate[predicates.size()]) ???
 
-        // группируем, создаем запрос в репозиторий, добавляем from, size и отправляем запрос
-        cq.groupBy(root, root.get("category").get("name"), root.get("initiator").get("name"));
-        TypedQuery<EventFullDto> query = entityManager.createQuery(cq);
+        TypedQuery<Event> query = entityManager.createQuery(cq);
         query.setFirstResult(from).setMaxResults(size);
-        List<EventFullDto> resultList = query.getResultList();
+        List<Event> events = query.getResultList();
 
-        // получаем id опубликованных событий, запрашиваем просмотры в статистике, добавляем их к dto событий
-        List<Long> ids = resultList.stream()
-                .filter(eventFullDto -> eventFullDto.getState().equals(EventState.PUBLISHED))
-                .map(EventFullDto::getId)
-                .collect(Collectors.toList());
-        Map<Long, Long> viewsMap = eventServicePublic.getViews(ids);
-        for (EventFullDto dto : resultList) {
-            Long views = viewsMap.get(dto.getId());
-            dto.setViews(Objects.requireNonNullElse(views, 0L));
+        List<EventFullDto> eventDtos = new ArrayList<>();
+
+        // запрашиваем просмотры в сервисе статистики (будут получены только те события, у которых были просмотры)
+        Map<Long, Long> viewsMap = eventServicePublic.getViewsMap(events);
+
+        for (Event event : events) {
+            long views = viewsMap.getOrDefault(event.getId(), 0L);
+            int participantLimit = event.getParticipantLimit();
+            long confirmedRequests = EventServicePublicImpl.getConfirmedRequests(event, participantLimit);
+            eventDtos.add(eventMapper.toEventFullDto(event, confirmedRequests, views));
         }
-        return resultList;
+        return eventDtos;
     }
 
-    // todo наверное, нужно добавить просмотры и подтвержденные запросы на участие к измененному событию
-    //  (если оно опубликовано)
     @Transactional
     public EventFullDto changeEvent(Long eventId, EventUpdateAdminRequestDto eventDto) {
         Event event = eventRepository.findById(eventId).orElseThrow(
@@ -119,9 +107,10 @@ public class EventServiceAdminImpl {
     private void changeEventDateAndStateAction(EventUpdateAdminRequestDto eventDto, Event event) {
         if (eventDto.getEventDate() != null) {
             LocalDateTime eventDate = eventDto.getEventDate();
+            // todo проверить, что проверка нужна именно здесь (для тестов), а не там, где меняется состояние
             if (eventDate.isBefore(LocalDateTime.now().plus(1, ChronoUnit.HOURS))) {
-                throw new ValidateException("Дата начала изменяемого события должна быть в будущем " +
-                        "и не менее, чем через час от даты публикации события");
+                throw new ValidateException("Дата начала изменяемого события должна быть " +
+                        "не менее, чем через час от даты публикации события");
             }
             event.setEventDate(eventDto.getEventDate());
         }
@@ -168,11 +157,11 @@ public class EventServiceAdminImpl {
         }
         switch (stateAction) {
             case PUBLISH_EVENT:
-                LocalDateTime nowPlusOneHour = LocalDateTime.now().plus(1, ChronoUnit.HOURS);
-                if (event.getEventDate().isBefore(nowPlusOneHour))
-                    throw new EventConflictException("" +
-                            "Дата начала изменяемого события должна быть не ранее чем за час от даты публикации");
-                if (event.getState().equals(EventState.PENDING)) {
+//                LocalDateTime nowPlusOneHour = LocalDateTime.now().plus(1, ChronoUnit.HOURS);
+//                if (event.getEventDate().isBefore(nowPlusOneHour))
+//                    throw new EventConflictException("" +
+//                            "Дата начала изменяемого события должна быть не ранее чем за час от даты публикации");
+                if (Objects.equals(event.getState(), EventState.PENDING)) {
                     event.setState(EventState.PUBLISHED);
                     event.setPublishedOn(LocalDateTime.now());
                 } else {
@@ -181,7 +170,7 @@ public class EventServiceAdminImpl {
                 }
                 break;
             case REJECT_EVENT:
-                if (!event.getState().equals(EventState.PUBLISHED)) {
+                if (!Objects.equals(event.getState(), EventState.PUBLISHED)) {
                     event.setState(EventState.CANCELED);
                 } else {
                     throw new EventConflictException("" +
@@ -189,7 +178,8 @@ public class EventServiceAdminImpl {
                 }
                 break;
             default:
-                throw new ValidateException("Состояние изменяемого события должно быть PUBLISH_EVENT, REJECT_EVENT или null");
+                throw new ValidateException("Состояние изменяемого события должно быть " +
+                        "PUBLISH_EVENT, REJECT_EVENT или null");
         }
     }
 
