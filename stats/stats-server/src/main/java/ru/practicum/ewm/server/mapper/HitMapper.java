@@ -17,4 +17,5 @@ public class HitMapper {
         hit.setRequestTimeStamp(LocalDateTime.parse(hitDtoRequest.getTimestamp(), formatter));
         return hit;
     }
+
 }

@@ -16,10 +16,11 @@ public class UserDto {
 
     private Long id;
 
+    @NotNull(message = "name can't be null", groups = {Create.class})
     @NotBlank(groups = {Create.class})
     private String name;
 
-    @NotNull(groups = {Create.class})
+    @NotNull(message = "email can't be null", groups = {Create.class})
     @Email(groups = {Create.class})
     private String email;
 

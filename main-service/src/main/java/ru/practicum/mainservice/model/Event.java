@@ -1,8 +1,6 @@
 package ru.practicum.mainservice.model;
 
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
@@ -13,10 +11,13 @@ import java.util.List;
 @ToString
 @Entity
 @Table(name = "events")
+@AllArgsConstructor
+@NoArgsConstructor
 public class Event {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "event_id")
     private Long id;
 
     @Column(nullable = false, length = 120)
@@ -28,7 +29,7 @@ public class Event {
     @Column(nullable = false, length = 7000)
     private String description;
 
-    @ManyToOne
+    @ManyToOne/*(fetch = FetchType.LAZY)*/
     @JoinColumn(name = "category_id", nullable = false)
     private Category category;
 
@@ -60,7 +61,10 @@ public class Event {
     @Column(length = 16)
     private EventState state;
 
-    @ManyToMany(mappedBy = "eventsOfCompilation")
-    private List<Compilation> myCompilations;
+    @OneToMany(mappedBy = "event")
+    private List<ParticipationRequest> requests;
+
+//    @ManyToMany(mappedBy = "eventsOfCompilation")
+//    private List<Compilation> myCompilations;
 
 }

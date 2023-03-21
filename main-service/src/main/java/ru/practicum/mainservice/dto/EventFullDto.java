@@ -1,11 +1,11 @@
 package ru.practicum.mainservice.dto;
 
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 import ru.practicum.mainservice.Create;
-import ru.practicum.mainservice.model.EventState;
-import ru.practicum.mainservice.model.Location;
+import ru.practicum.mainservice.model.*;
 
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.PositiveOrZero;
@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @ToString
+@NoArgsConstructor
 public class EventFullDto {
 
     private Long id;
@@ -30,7 +31,6 @@ public class EventFullDto {
     private CategoryDto category;
 
     @NotNull(message = "eventDate can't be null", groups = {Create.class})
-//    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime eventDate;
 
     @NotNull(message = "location can't be null", groups = {Create.class})
@@ -55,5 +55,31 @@ public class EventFullDto {
     private Long confirmedRequests;
 
     private Long views;
+
+    public EventFullDto(
+            Long id, String title, String annotation, String description,
+            Long categoryId, String categoryName,
+            LocalDateTime eventDate, Location location, Boolean paid, Integer participantLimit,
+            Boolean requestModeration, java.time.LocalDateTime createdOn, LocalDateTime publishedOn,
+            Long userId, String userName,
+            EventState state,
+            Long confirmedRequests) {
+        this.id = id;
+        this.title = title;
+        this.annotation = annotation;
+        this.description = description;
+        this.category = new CategoryDto(categoryId, categoryName);
+        this.eventDate = eventDate;
+        this.location = location;
+        this.paid = paid;
+        this.participantLimit = participantLimit;
+        this.requestModeration = requestModeration;
+        this.createdOn = createdOn;
+        this.publishedOn = publishedOn;
+        this.initiator = new UserShortDto(userId, userName);
+        this.state = state;
+        this.confirmedRequests = confirmedRequests;
+        this.views = null;
+    }
 
 }

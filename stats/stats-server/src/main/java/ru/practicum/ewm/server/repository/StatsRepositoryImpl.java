@@ -38,7 +38,7 @@ public class StatsRepositoryImpl implements StatsRepositoryCustom {
         if (uris != null && uris.size() != 0) {
             predicates.add(root.get("uri").in(uris));
         }
-        criteriaQuery.where(predicates.toArray(new Predicate[0]));
+        criteriaQuery.where(predicates.toArray(new Predicate[0])); // (new Predicate[predicates.size()]) ???
 
         // указываем что брать (select)
         criteriaQuery.multiselect(root.get("app"), root.get("uri"),

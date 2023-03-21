@@ -8,6 +8,8 @@ import ru.practicum.mainservice.model.Event;
 import ru.practicum.mainservice.model.ParticipationRequest;
 import ru.practicum.mainservice.model.User;
 
+import java.util.List;
+
 @Mapper(unmappedTargetPolicy = ReportingPolicy.IGNORE,
         componentModel = "spring")
 public interface ParticipationRequestMapper {
@@ -20,5 +22,9 @@ public interface ParticipationRequestMapper {
     @Mapping(target = "requester", source = "requester.id")
     @Mapping(target = "event", source = "event.id")
     ParticipationRequestDto toDto(ParticipationRequest participationRequest);
+
+    @Mapping(target = "requester", source = "requester.id")
+    @Mapping(target = "event", source = "event.id")
+    List<ParticipationRequestDto> toDtos(List<ParticipationRequest> participationRequest);
 
 }

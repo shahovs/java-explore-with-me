@@ -17,12 +17,15 @@ import java.time.LocalDateTime;
 @ToString
 public class EventNewDto {
 
+    @NotNull(message = "title can't be null", groups = {Create.class})
     @Size(min = 3, max = 120, message = "title must have from 3 to 120 characters", groups = {Create.class})
     private String title;
 
+    @NotNull(message = "annotation can't be null", groups = {Create.class})
     @Size(min = 20, max = 2000, message = "annotation must have from 20 to 2000 characters", groups = {Create.class})
     private String annotation;
 
+    @NotNull(message = "description can't be null", groups = {Create.class})
     @Size(min = 20, max = 7000, message = "description must have from 20 to 7000 characters", groups = {Create.class})
     private String description;
 
@@ -30,7 +33,7 @@ public class EventNewDto {
     private Long category;
 
     @NotNull(message = "eventDate can't be null", groups = {Create.class})
-    @Future(message = "eventDate must be in future (min 2 hours from now)", groups = {Create.class})
+//    @Future(message = "eventDate must be in future (min 2 hours from now)", groups = {Create.class})
     private LocalDateTime eventDate;
 
     @NotNull(message = "location can't be null", groups = {Create.class})

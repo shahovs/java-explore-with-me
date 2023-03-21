@@ -16,6 +16,7 @@ public class Compilation {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "compilation_id")
     private Long id;
 
     private String title;
@@ -23,13 +24,11 @@ public class Compilation {
     private Boolean pinned;
 
     @ManyToMany
-//            (mappedBy="compilations")
-//    @JoinColumn(name = "compilation_id")
     @JoinTable(
             name = "compilations_events",
             joinColumns = @JoinColumn(name = "compilation_id"),
             inverseJoinColumns = @JoinColumn(name = "event_id")
     )
-    private List<Event> eventsOfCompilation/* = new ArrayList<>()*/;
+    private List<Event> eventsOfCompilation;
 
 }

@@ -17,10 +17,10 @@ public class ParticipationRequestDto {
 
     private Long id;
 
-    @NotNull(groups = {Create.class, Update.class})
+    @NotNull(message = "requester can't be null", groups = {Create.class, Update.class})
     private Long requester;
 
-    @NotNull(groups = {Create.class, Update.class})
+    @NotNull(message = "event can't be null", groups = {Create.class, Update.class})
     private Long event;
 
     private LocalDateTime created;

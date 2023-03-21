@@ -16,6 +16,7 @@ public class ParticipationRequest {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "participation_request_id")
     private Long id;
 
     @ManyToOne

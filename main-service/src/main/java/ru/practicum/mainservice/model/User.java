@@ -1,8 +1,6 @@
 package ru.practicum.mainservice.model;
 
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 
 import javax.persistence.*;
 
@@ -11,6 +9,8 @@ import javax.persistence.*;
 @ToString
 @Entity
 @Table(name = "users")
+@AllArgsConstructor
+@NoArgsConstructor
 public class User {
 
     @Id
@@ -21,7 +21,7 @@ public class User {
     @Column(name = "user_name", nullable = false, length = 40, unique = true)
     private String name;
 
-    @Column(name = "user_email", nullable = false, length = 40, unique = true)
+    @Column(name = "email", nullable = false, length = 40, unique = true)
     private String email;
 
 }

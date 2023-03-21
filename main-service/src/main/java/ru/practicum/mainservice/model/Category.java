@@ -1,8 +1,6 @@
 package ru.practicum.mainservice.model;
 
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 
 import javax.persistence.*;
 
@@ -11,13 +9,16 @@ import javax.persistence.*;
 @ToString
 @Entity
 @Table(name = "categories")
+@AllArgsConstructor
+@NoArgsConstructor
 public class Category {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "category_id")
     private Long id;
 
-    @Column(nullable = false, length = 40, unique = true)
+    @Column(name = "category_name", nullable = false, length = 40, unique = true)
     private String name;
 
 }

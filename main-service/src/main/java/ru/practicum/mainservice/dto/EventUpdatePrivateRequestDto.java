@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @ToString
-public class EventUpdateAdminRequestDto {
+public class EventUpdatePrivateRequestDto {
 
     @Size(min = 3, max = 120, message = "title must have from 3 to 120 characters", groups = {Update.class})
     private String title;
@@ -27,8 +27,7 @@ public class EventUpdateAdminRequestDto {
 
     private Long category;
 
-    // todo можно ли как-то задать статус ответа (conflict вместо bad request)??? // иначе тесты не проходят
-//    @Future(message = "eventDate must be in future (min 2 hours from now)", groups = {Update.class})
+    @Future(message = "eventDate must be in future (min 2 hours from now)", groups = {Update.class})
     private LocalDateTime eventDate;
 
     private Location location;

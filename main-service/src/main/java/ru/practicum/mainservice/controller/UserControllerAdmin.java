@@ -24,7 +24,7 @@ public class UserControllerAdmin {
     private final UserServiceAdminImpl userService;
 
     @GetMapping
-    ResponseEntity<List<UserDto>> getUser(@RequestParam(name = "ids", required = false) List<Long> userIds,
+    ResponseEntity<List<UserDto>> getAllUsersByIds(@RequestParam(name = "ids", required = false) List<Long> userIds,
                                     @PositiveOrZero @RequestParam(name = "from", defaultValue = "0") Integer fromElement,
                                     @Positive @RequestParam(defaultValue = "10") Integer size) {
         log.info("\n\nПолучен запрос к эндпоинту: GET /admin/users, \nuserIds={}, from={}, size={}",

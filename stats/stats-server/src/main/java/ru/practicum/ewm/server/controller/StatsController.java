@@ -17,7 +17,7 @@ import java.util.List;
 public class StatsController {
 
     private final StatsService statsService;
-
+// todo заменить строки на даты (не забыть про класс class HitMapper)
     @GetMapping(path = "/stats")
     List<HitShortWithHitsDtoResponse> getHits(@RequestParam String start,
                                               @RequestParam String end,

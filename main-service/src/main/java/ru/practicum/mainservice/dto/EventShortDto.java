@@ -1,8 +1,7 @@
 package ru.practicum.mainservice.dto;
 
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import com.querydsl.core.annotations.QueryProjection;
+import lombok.*;
 import ru.practicum.mainservice.Create;
 
 import javax.validation.constraints.NotNull;
@@ -36,5 +35,22 @@ public class EventShortDto {
     private Long confirmedRequests;
 
     private Long views;
+
+    public EventShortDto() {
+    }
+
+//    @QueryProjection
+    public EventShortDto(Long id, String title, String annotation, Long categoryId, String categoryName,
+                         LocalDateTime eventDate, Boolean paid, Long userId, String userName, Long confirmedRequests) {
+        this.id = id;
+        this.title = title;
+        this.annotation = annotation;
+        this.category = new CategoryDto(categoryId, categoryName);
+        this.eventDate = eventDate;
+        this.paid = paid;
+        this.initiator = new UserShortDto(userId, userName);
+        this.confirmedRequests = confirmedRequests;
+        this.views = null;
+    }
 
 }

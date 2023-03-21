@@ -1,5 +1,5 @@
 package ru.practicum.mainservice.model;
 
 public enum ParticipationRequestStatus {
-    PENDING, CONFIRMED, REJECTED
+    PENDING, CONFIRMED, REJECTED, CANCELED
 }

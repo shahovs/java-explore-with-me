@@ -1,4 +1,4 @@
-package ru.practicum.mainservice;
+package ru.practicum.mainservice.dto;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -16,7 +16,7 @@ public class ErrorResponse {
     private final LocalDateTime timestamp; // Дата и время когда произошла ошибка
     private final StackTraceElement[] errors; // Список стектрейсов или описания ошибок
 
-    public ErrorResponse(RuntimeException e, HttpStatus status, String reason) {
+    public ErrorResponse(Throwable e, HttpStatus status, String reason) {
         message = e.getMessage();
         this.status = status;
         this.reason = reason;
