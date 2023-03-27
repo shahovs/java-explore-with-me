@@ -7,6 +7,22 @@ import lombok.ToString;
 import javax.persistence.*;
 import java.util.List;
 
+@NamedEntityGraph(
+        name = "compilation-entity-graph",
+        attributeNodes = {
+                @NamedAttributeNode(value = "eventsOfCompilation", subgraph = "events-subgraph"),
+        },
+        subgraphs = {
+                @NamedSubgraph(
+                        name = "events-subgraph",
+                        attributeNodes = {
+                                @NamedAttributeNode("category"),
+                                @NamedAttributeNode("initiator")
+                        }
+                )
+        }
+)
+
 @Getter
 @Setter
 @ToString

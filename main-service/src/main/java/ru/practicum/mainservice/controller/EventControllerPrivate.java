@@ -56,7 +56,8 @@ public class EventControllerPrivate {
     }
 
     @GetMapping(path = "/{eventId}/requests")
-    ResponseEntity<List<ParticipationRequestDto>> getRequestsOfEvent(@PathVariable Long initiatorId, @PathVariable Long eventId) {
+    ResponseEntity<List<ParticipationRequestDto>> getRequestsOfEvent(@PathVariable Long initiatorId,
+                                                                     @PathVariable Long eventId) {
         log.info("\n\nПолучен запрос к эндпоинту: GET /users/{}/events/{}/requests", initiatorId, eventId);
         List<ParticipationRequestDto> result = eventServicePrivate.getRequestsOfEvent(initiatorId, eventId);
         return new ResponseEntity<>(result, HttpStatus.OK);

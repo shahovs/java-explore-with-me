@@ -6,6 +6,15 @@ import javax.persistence.*;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@NamedEntityGraph(
+        name = "event-entity-graph",
+        attributeNodes = {
+                @NamedAttributeNode("category"),
+                @NamedAttributeNode("initiator"),
+                @NamedAttributeNode("requests"),
+        }
+)
+
 @Getter
 @Setter
 @ToString
@@ -29,7 +38,7 @@ public class Event {
     @Column(nullable = false, length = 7000)
     private String description;
 
-    @ManyToOne/*(fetch = FetchType.LAZY)*/
+    @ManyToOne
     @JoinColumn(name = "category_id", nullable = false)
     private Category category;
 

@@ -1,6 +1,5 @@
 package ru.practicum.mainservice.service.impl;
 
-import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
@@ -14,11 +13,10 @@ import ru.practicum.mainservice.exception.ObjectNotFoundException;
 import ru.practicum.mainservice.exception.ValidateException;
 import ru.practicum.mainservice.mapper.EventMapper;
 import ru.practicum.mainservice.model.*;
-import ru.practicum.mainservice.repository.EventRepository;
 
+import javax.persistence.EntityGraph;
 import javax.persistence.EntityManager;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -27,62 +25,46 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class EventServicePublicImpl {
 
-    private final EventRepository eventRepository;
     private final EventMapper eventMapper;
-
     private final StatsClient statsClient;
-    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private final EntityManager entityManager;
 
     public EventFullDto getEventById(Long eventId, String ip) {
-        Event event = eventRepository.findById(eventId).orElseThrow(
-                () -> new ObjectNotFoundException("Событие не найдено"));
-        if (!Objects.equals(event.getState(), EventState.PUBLISHED)) {
-            throw new ValidateException("Событие должно быть опубликовано");
-        }
+        EntityGraph<?> entityGraph = entityManager.getEntityGraph("event-entity-graph");
+        Map<String, Object> properties = new HashMap<>();
+        properties.put("javax.persistence.fetchgraph", entityGraph);
+        Event event = entityManager.find(Event.class, eventId, properties);
+        validateEvent(event);
         Long confirmedRequests = event.getRequests().stream()
                 .filter(request -> Objects.equals(request.getStatus(), ParticipationRequestStatus.CONFIRMED))
                 .count();
         // получаем количество просмотров события (из статистики)
         Long views = getViewsOfOneEvent(eventId);
         // отправляем в статистику информацию о просмотре события
-        statsClient.postStatMonolit("emw", "/events/" + eventId, ip,
-                LocalDateTime.now().format(DATE_TIME_FORMATTER));
+        statsClient.postStatMonolith("ewm-main-service", "/events/" + eventId, ip, LocalDateTime.now());
         EventFullDto eventFullDto = eventMapper.toEventFullDto(event, confirmedRequests, views);
         return eventFullDto;
     }
 
-//    EventFullDto findEventFullDto(Long eventId) {
-//        List<EventFullDto> resultList = eventRepository.findEventsFullDto(Collections.singletonList(eventId));
-//        if (resultList.size() == 1) {
-//            return resultList.get(0);
-//        }
-//        throw new ObjectNotFoundException("Событие не найдено или недоступно");
-//    }
-
-//    private void validateEvent(EventFullDto eventFullDto) {
-//        if (!eventFullDto.getState().equals(EventState.PUBLISHED)) {
-//            throw new ValidateException("Событие должно быть опубликовано");
-//        }
-//    }
+    private static void validateEvent(Event event) {
+        if (event == null) {
+            throw new ObjectNotFoundException("Событие не найдено");
+        }
+        if (!Objects.equals(event.getState(), EventState.PUBLISHED)) {
+            throw new ValidateException("Событие должно быть опубликовано");
+        }
+    }
 
     // запрашиваем в статистике количество просмотров
+    // метод не private, поскольку используется также классом EventServicePrivateImpl
     Long getViewsOfOneEvent(Long eventId) {
         // подготавливаем данные
         String[] uri = {"/events/" + eventId};
-        String start = LocalDateTime.of(2023, 1, 1, 0, 0).format(DATE_TIME_FORMATTER);
-        String end = LocalDateTime.now().format(DATE_TIME_FORMATTER);
+        LocalDateTime start = LocalDateTime.of(2023, 1, 1, 0, 0);
+        LocalDateTime end = LocalDateTime.now();
 
         // запрашиваем статистику
         HitShortWithHitsDtoResponse[] statArray = statsClient.getStatArray(start, end, uri, false);
-//        ResponseEntity<Object> statObject = statsClient.getStatObject(start, end, uri, false);
-//        List<Map> list = (List<Map>) statObject.getBody();
-//        if (list.size() == 1) {
-//            Map<String, Object> map = list.get(0);
-//            Object views = map.get("hits");
-//            Integer result = (Integer) views;
-//            return (long) result;
-//        }
         if (statArray.length == 1) {
             HitShortWithHitsDtoResponse hitShortWithHitsDtoResponse = statArray[0];
             return hitShortWithHitsDtoResponse.getHits();
@@ -96,19 +78,9 @@ public class EventServicePublicImpl {
                                                   String sort, int from, int size, String ip) {
         // подготавливаем переменные для формирования запроса
         QEvent qEvent = QEvent.event;
-//        QParticipationRequest qParticipationRequest = QParticipationRequest.participationRequest;
-//        QUser qUser = QUser.user;
-//        QCategory qCategory = QCategory.category;
         JPAQueryFactory factory = new JPAQueryFactory(entityManager);
-
-        // Отдельный момент. Вместо обертки можно использовать проекцию (интерфейс без создания класса)
-        // см. 4.1 https://www.baeldung.com/jpa-queries-custom-result-with-aggregation-functions
-        // (класс, реализующий интерфейс в этом случае спринг сделает сам)
-// todo как сделать, чтобы получался один запрос в базу вместо 4 отдельных (Event, User, Category, PartRequest)?
+        // основная часть запроса (select, where == PUBLISHED)
         JPAQuery<Event> query = factory.selectFrom(qEvent)
-//                .join(qUser).on(qUser.id.eq(qEvent.initiator.id))
-//                .join(qCategory).on(qCategory.id.eq(qEvent.category.id))
-//                .leftJoin(qParticipationRequest).on(qParticipationRequest.event.eq(qEvent))
                 .where(qEvent.state.eq(EventState.PUBLISHED));
 
         // добавляем условия, полученные в запросе (даты, текст, категории, платность участия)
@@ -120,42 +92,51 @@ public class EventServicePublicImpl {
         }
 
         // применяем from, size
-        query.offset(from).limit(size); // query.restrict() ???
+        query.offset(from).limit(size);
+
+        // просим добавить к запросу сущности User + Category + List PartRequests (тогда у нас будет 1 запрос вместо 4)
+        EntityGraph<?> entityGraph = entityManager.getEntityGraph("event-entity-graph");
+        query.setHint("javax.persistence.fetchgraph", entityGraph);
+
         // делаем запрос
         List<Event> events = query.fetch();
 
-        List<EventShortDto> eventDtos = getEventShortDtos(events, onlyAvailable);
+        List<EventShortDto> eventDtos = mapToEventShortDtos(events, onlyAvailable);
 
-        // если нужно, делаем сортировку по просмотрам (но тогда ломается пагинация)
-        // а по другому никак - только добавлять views в таблицу events, но по заданию должно быть так:
-        // "сортировка событий должна быть по кол-ву просмотров, которое будет запрашиваться в сервисе статистики";
-        // либо придется делать сначала запрос в events для получения всех подходящих ids (без пагинации),
-        // потом делать запрос в статистику для получения всех views
-        // (метод клиента статистики не преполагает сортировки и пагинации)
-        // потом вручную делать сортировку и пагинацию и второй запрос в events для получения отобранных событий
-        // то есть получится три запроса вместо двух, причем два из них без ограничения (size) результатов
-        // (аналогичная проблема и с onlyAvailable)
+        // Если нужно, делаем сортировку по просмотрам (но тогда ломается пагинация).
+        // А по другому никак - только добавлять views в таблицу events. Но по заданию должно быть так:
+        // "сортировка событий должна быть по кол-ву просмотров, которое будет запрашиваться в сервисе статистики".
+        // Либо придется делать так: 1) Сначала запрос в events для получения всех подходящих ids (без пагинации).
+        // 2) Потом делать запрос в статистику для получения всех views
+        // (метод клиента статистики не преполагает сортировки и пагинации).
+        // 3) Потом вручную делать сортировку и пагинацию и второй запрос в events для получения отобранных событий.
+        // То есть получится три запроса вместо двух, причем два из них без ограничения результатов (size)
+        // (аналогичная проблема и с параметром Boolean onlyAvailable).
         if (sort != null && sort.equals("VIEWS")) {
             eventDtos.sort(Comparator.comparing(EventShortDto::getViews).reversed());
         }
 
         // отправляем в статистику данные о сделанном запросе
-        statsClient.postStat("emw", "/events", ip, LocalDateTime.now().format(DATE_TIME_FORMATTER));
+        statsClient.postStat("ewm-main-service", "/events", ip, LocalDateTime.now());
         return eventDtos;
     }
 
-    List<EventShortDto> getEventShortDtos(List<Event> events, Boolean onlyAvailable) {
-        List<EventShortDto> eventDtos = new ArrayList<>();
+    // метод не private, поскольку используется классом EventServicePrivateImpl и классами подборок
+    List<EventShortDto> mapToEventShortDtos(List<Event> events) {
+        return mapToEventShortDtos(events, false);
+    }
 
+    private List<EventShortDto> mapToEventShortDtos(List<Event> events, Boolean onlyAvailable) {
         // запрашиваем просмотры в сервисе статистики (будут получены только те события, у которых были просмотры)
         Map<Long, Long> viewsMap = getViewsMap(events);
-
+        List<EventShortDto> eventDtos = new ArrayList<>();
         for (Event event : events) {
             long views = viewsMap.getOrDefault(event.getId(), 0L);
             int participantLimit = event.getParticipantLimit();
             long confirmedRequests = getConfirmedRequests(event, participantLimit);
-            // добавляем в dtos либо все события (!onlyAvailable), либо те, у которых нет лимита участия,
-            // либо те, у которых не исчерпан лимит участия
+            // если onlyAvailable == false, то добавляем все события (!onlyAvailable),
+            // иначе добавляем только те события, у которых нет лимита участия (participantLimit == 0),
+            // или у которых не исчерпан лимит участия (participantLimit - confirmedRequests) > 0)
             if (!onlyAvailable || (participantLimit == 0) || ((participantLimit - confirmedRequests) > 0)) {
                 eventDtos.add(eventMapper.toEventShortDto(event, confirmedRequests, views));
             }
@@ -178,11 +159,11 @@ public class EventServicePublicImpl {
         List<Long> eventIds = events.stream()
                 .map(Event::getId)
                 .collect(Collectors.toList());
-        Map<Long, Long> viewsMap = getViews(eventIds);
+        Map<Long, Long> viewsMap = getViewsByIds(eventIds);
         return viewsMap;
     }
 
-    Map<Long, Long> getViews(List<Long> eventIds) {
+    private Map<Long, Long> getViewsByIds(List<Long> eventIds) {
         if (eventIds == null || eventIds.size() == 0) {
             return null;
         }
@@ -192,17 +173,17 @@ public class EventServicePublicImpl {
         for (int i = 0; i < eventIds.size(); i++) {
             uri[i] = EVENTS + eventIds.get(i);
         }
-        String start = LocalDateTime.of(2023, 1, 1, 0, 0).format(DATE_TIME_FORMATTER);
-        String end = LocalDateTime.now().format(DATE_TIME_FORMATTER);
+        LocalDateTime start = LocalDateTime.of(2023, 1, 1, 0, 0);
+        LocalDateTime end = LocalDateTime.now();
 
         // запрашиваем статистику
-        HitShortWithHitsDtoResponse[] statArray = statsClient.getStatArray(start, end, uri, false);
+        List<HitShortWithHitsDtoResponse> statArray = statsClient.getStatList(start, end, uri, false);
 
         // обрабатываем результат запроса
-        int startOfId = EVENTS.length();
+        int indexOfStartOfId = EVENTS.length();
         Map<Long, Long> result = new HashMap<>();
         for (HitShortWithHitsDtoResponse hit : statArray) {
-            String idString = hit.getUri().substring(startOfId);
+            String idString = hit.getUri().substring(indexOfStartOfId);
             Long id = Long.parseLong(idString);
             result.put(id, hit.getHits());
         }

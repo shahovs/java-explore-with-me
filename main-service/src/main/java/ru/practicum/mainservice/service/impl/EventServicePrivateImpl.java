@@ -1,12 +1,9 @@
 package ru.practicum.mainservice.service.impl;
 
-import com.querydsl.core.Tuple;
-import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.practicum.ewm.stat.client.StatsClient;
 import ru.practicum.mainservice.dto.*;
 import ru.practicum.mainservice.exception.LimitException;
 import ru.practicum.mainservice.exception.ObjectNotFoundException;
@@ -19,10 +16,14 @@ import ru.practicum.mainservice.repository.EventRepository;
 import ru.practicum.mainservice.repository.ParticipationRequestRepository;
 import ru.practicum.mainservice.repository.UserRepository;
 
+import javax.persistence.EntityGraph;
 import javax.persistence.EntityManager;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -33,20 +34,14 @@ public class EventServicePrivateImpl {
     private final EventRepository eventRepository;
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
-    private final ParticipationRequestRepository requestRepository;
     private final ParticipationRequestRepository partRequestRepository;
     private final EntityManager entityManager;
     private final EventMapper eventMapper;
     private final ParticipationRequestMapper participationRequestMapper;
-    private final StatsClient statsClient;
     private final EventServicePublicImpl eventServicePublic;
 
     public EventFullDto getEventById(Long initiatorId, Long eventId) {
-        Event event = eventRepository.findById(eventId).orElseThrow(
-                () -> new ObjectNotFoundException("Событие не найдено"));
-        if (!Objects.equals(initiatorId, event.getInitiator().getId())) {
-            throw new ValidateException("Событие может запрашивать только создавший его пользователь");
-        }
+        Event event = getEventWithGraphAndValidate(initiatorId, eventId);
         Long confirmedRequests = event.getRequests().stream()
                 .filter(request -> Objects.equals(request.getStatus(), ParticipationRequestStatus.CONFIRMED))
                 .count();
@@ -54,6 +49,24 @@ public class EventServicePrivateImpl {
         Long views = eventServicePublic.getViewsOfOneEvent(eventId);
         EventFullDto eventFullDto = eventMapper.toEventFullDto(event, confirmedRequests, views);
         return eventFullDto;
+    }
+
+    private Event getEventWithGraphAndValidate(Long initiatorId, Long eventId) {
+        EntityGraph<?> entityGraph = entityManager.getEntityGraph("event-entity-graph");
+        Map<String, Object> properties = new HashMap<>();
+        properties.put("javax.persistence.fetchgraph", entityGraph);
+        Event event = entityManager.find(Event.class, eventId, properties);
+        validateEventAndInitiator(initiatorId, event);
+        return event;
+    }
+
+    private static void validateEventAndInitiator(Long initiatorId, Event event) {
+        if (event == null) {
+            throw new ObjectNotFoundException("Событие не найдено");
+        }
+        if (!Objects.equals(initiatorId, event.getInitiator().getId())) {
+            throw new ValidateException("Запрос может делать только пользователь, создавший событие (инициатор)");
+        }
     }
 
     public List<EventShortDto> getEventsByUser(Long initiatorId, int from, int size) {
@@ -66,9 +79,10 @@ public class EventServicePrivateImpl {
                 .where(qEvent.initiator.id.eq(initiatorId))
                 .offset(from)
                 .limit(size)
+                .setHint("javax.persistence.fetchgraph", entityManager.getEntityGraph("event-entity-graph"))
                 .fetch();
 
-        List<EventShortDto> eventDtos = eventServicePublic.getEventShortDtos(events, false);
+        List<EventShortDto> eventDtos = eventServicePublic.mapToEventShortDtos(events);
         return eventDtos;
     }
 
@@ -82,7 +96,7 @@ public class EventServicePrivateImpl {
         Event event = eventMapper.toEntity(eventNewDto, initiator);
         event.setCreatedOn(LocalDateTime.now());
         event.setState(EventState.PENDING);
-        // А можно ли как-то добавить в базу новую сущность Event,
+        // todo А можно ли как-то добавить в базу новую сущность Event,
         // не запрашивая из базы User и Category, а передав только их id (которые к нам пришли вместе с dto)?
         // Так чтобы не писать запрос вручную, конечно.
         eventRepository.save(event);
@@ -131,7 +145,8 @@ public class EventServicePrivateImpl {
                 event.setState(EventState.CANCELED);
                 break;
             default:
-                throw new ValidateException("Состояние изменяемого события должно быть SEND_TO_REVIEW, CANCEL_REVIEW или null");
+                throw new ValidateException(
+                        "Состояние изменяемого события должно быть SEND_TO_REVIEW, CANCEL_REVIEW или null");
         }
     }
 
@@ -172,11 +187,7 @@ public class EventServicePrivateImpl {
     }
 
     public List<ParticipationRequestDto> getRequestsOfEvent(Long initiatorId, Long eventId) {
-        Event event = eventRepository.findById(eventId).orElseThrow(
-                () -> new ObjectNotFoundException("Событие не найдено"));
-        if (!Objects.equals(initiatorId, event.getInitiator().getId())) {
-            throw new ValidateException("Запросы на участие в событии может получить только инициатор события");
-        }
+        Event event = getEventWithGraphAndValidate(initiatorId, eventId);
         List<ParticipationRequest> requests = event.getRequests();
         List<ParticipationRequestDto> resultList = participationRequestMapper.toDtos(requests);
         return resultList;
@@ -185,24 +196,29 @@ public class EventServicePrivateImpl {
     @Transactional
     public EventRequestStatusUpdateResultDto changeStatusOfRequestsOfEvent(
             Long initiatorId, Long eventId, EventRequestStatusUpdateRequestDto updateRequestDto) {
+        // получаем событие со всеми запросами на участие
+        Event event = getEventWithGraphAndValidate(initiatorId, eventId);
 
-        Event event = eventRepository.findById(eventId).orElseThrow(
-                () -> new ObjectNotFoundException("Событие не найдено"));
-
-        // если лимит заявок == 0 или отключена пре-модерация заявок, то подтверждение (/отклонение) заявок не требуется
+        // если отключена пре-модерация заявок или лимит заявок == 0, то подтверждение (/отклонение) заявок не требуется
         if (!event.getRequestModeration() || event.getParticipantLimit() == 0) {
             return null;
         }
 
-        List<ParticipationRequest> requests = event.getRequests();
-        validateRequests(requests);
+        // получаем запросы на участие в событии, у которых нужно изменить статус
+        List<ParticipationRequest> allRequestsOfEvent = event.getRequests();
+        final List<Long> changingRequestIds = updateRequestDto.getRequestIds();
+        List<ParticipationRequest> changingRequests = allRequestsOfEvent.stream()
+                .filter(request -> changingRequestIds.contains(request.getId()))
+                .collect(Collectors.toList());
+
+        validateRequests(changingRequests);
 
         switch (updateRequestDto.getStatus()) {
             case CONFIRMED:
-                confirmRequests(requests, event);
+                confirmRequests(changingRequests, event);
                 break;
             case REJECTED:
-                requests = requests.stream()
+                changingRequests = changingRequests.stream()
                         .peek(request -> request.setStatus(ParticipationRequestStatus.REJECTED))
                         .collect(Collectors.toList());
                 break;
@@ -210,9 +226,9 @@ public class EventServicePrivateImpl {
                 throw new ValidateException("Ошибка. Статус должен быть CONFIRMED или REJECTED");
         }
 
-        partRequestRepository.saveAll(requests);
+        partRequestRepository.saveAll(changingRequests);
 
-        Map<Boolean, List<ParticipationRequestDto>> requestDtos = requests.stream()
+        Map<Boolean, List<ParticipationRequestDto>> requestDtos = changingRequests.stream()
                 .map(participationRequestMapper::toDto)
                 .collect(Collectors.partitioningBy(
                         request -> Objects.equals(request.getStatus(), ParticipationRequestStatus.CONFIRMED)));
@@ -231,19 +247,17 @@ public class EventServicePrivateImpl {
     }
 
     private void confirmRequests(List<ParticipationRequest> requests, Event event) {
-        // нельзя подтвердить заявку, если уже достигнут лимит по заявкам на данное событие
-        Integer requestCount = partRequestRepository.countAllByEventAndStatus(event, ParticipationRequestStatus.CONFIRMED);
+        int confirmedRequestCount = (int) event.getRequests().stream()
+                .filter(request -> Objects.equals(request.getStatus(), ParticipationRequestStatus.CONFIRMED))
+                .count();
         int participantLimit = event.getParticipantLimit();
-        // тесты требуют учитывать все поданные заявки, а не только те, которые уже подтвердили
-        // (причем даже ранее отклонненные заявки будут учитываться в расчете, что явно не верно)
-//        Integer requestCount = partRequestRepository.countAllByEvent(event);
-        if (participantLimit <= requestCount) {
+        // нельзя подтвердить заявку, если уже достигнут лимит по заявкам на данное событие
+        if (participantLimit <= confirmedRequestCount) {
             throw new LimitException("Достигнут лимит одобренных заявок");
         }
 
-        // далее подтверждаем заявки
-        // (если при этом лимит будет исчерпан, то все неподтверждённые заявки необходимо отклонить)
-        int currentLimit = participantLimit - requestCount;
+        // подтверждаем заявки (если при этом лимит будет исчерпан, то все неподтверждённые заявки необходимо отклонить)
+        int currentLimit = participantLimit - confirmedRequestCount;
         for (ParticipationRequest request : requests) {
             if (currentLimit > 0) {
                 request.setStatus(ParticipationRequestStatus.CONFIRMED);
@@ -253,43 +267,5 @@ public class EventServicePrivateImpl {
             --currentLimit;
         }
     }
-
-
-    // запрашиваем в статистике количество просмотров
-//    private Long getViews(Long eventId) {
-//        // подготавливаем данные
-//        String[] uri = {"/events/" + eventId};
-//
-//        // разобраться, почему не работает без форматтера (с настройками в AppConfig)
-////        String start = LocalDateTime.of(2023, 1, 1, 0, 0).toString();
-////        String end = LocalDateTime.now().toString();
-//
-//        DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-//        String start = LocalDateTime.of(2023, 1, 1, 0, 0).format(dateTimeFormatter);
-//        String end = LocalDateTime.now().format(dateTimeFormatter);
-//
-//        // запрашиваем статистику
-//        // первый вариант метода клиента
-//        ResponseEntity<Object> stat = statsClient.getStat(start, end, uri, false);
-//        List<HitShortWithHitsDtoResponse> resultList = (List<HitShortWithHitsDtoResponse>) stat.getBody();
-//        // второй вариант метода клиента
-//        List<HitShortWithHitsDtoResponse> statList = statsClient.getStatList(start, end, uri, false);
-//        // третий вариант метода клиента
-//        HitShortWithHitsDtoResponse[] statArray = statsClient.getStatArray(start, end, uri, false);
-//
-//        if (resultList.size() == 1) {
-//            HitShortWithHitsDtoResponse hitShortWithHitsDtoResponse = resultList.get(0);
-//            return hitShortWithHitsDtoResponse.getHits();
-//        }
-//        if (statList.size() == 1) {
-//            HitShortWithHitsDtoResponse hitShortWithHitsDtoResponse = statList.get(0);
-//            return hitShortWithHitsDtoResponse.getHits();
-//        }
-//        if (statArray.length == 1) {
-//            HitShortWithHitsDtoResponse hitShortWithHitsDtoResponse = statArray[0];
-//            return hitShortWithHitsDtoResponse.getHits();
-//        }
-//        return 0L;
-//    }
 
 }

@@ -1,5 +1,6 @@
 package ru.practicum.ewm.stat.client;
 
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
@@ -9,18 +10,22 @@ import org.springframework.web.client.RestTemplate;
 import ru.practicum.ewm.stat.dto.HitDtoRequest;
 import ru.practicum.ewm.stat.dto.HitShortWithHitsDtoResponse;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Map;
 
 public class StatsClient {
     protected final RestTemplate restTemplate;
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     public StatsClient(RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
     }
 
-    // todo можно улучшить; поменять start timestamp на LocalDateTime; тогда для вызова этого метода
-    public HitShortWithHitsDtoResponse[] getStatArray(String start, String end, String[] uris, Boolean unique) {
-        Map<String, Object> parameters = Map.of("start", start, "end", end, "uris", uris, "unique", unique);
+    public HitShortWithHitsDtoResponse[] getStatArray(LocalDateTime start, LocalDateTime end, String[] uris,
+                                                      Boolean unique) {
+        Map<String, Object> parameters = getParametersMap(start, end, uris, unique);
         String path = "/stats?start={start}&end={end}&uris={uris}&unique={unique}";
         ResponseEntity<HitShortWithHitsDtoResponse[]> responseEntity =
                 restTemplate.getForEntity(path, HitShortWithHitsDtoResponse[].class, parameters);
@@ -28,41 +33,49 @@ public class StatsClient {
         return result;
     }
 
-    // этот метод - альтернатива предыдущему методу getStatArray;
-    // работать с возвращаемым значением ResponseEntity<Object> не так удобно,
-    // поэтому метод в коде не вызывается, но код рабочий, метод проверен
+    private static Map<String, Object> getParametersMap(LocalDateTime start, LocalDateTime end, String[] uris,
+                                                        Boolean unique) {
+        Map<String, Object> parameters = Map.of(
+                "start", start.format(DATE_TIME_FORMATTER),
+                "end", end.format(DATE_TIME_FORMATTER),
+                "uris", uris,
+                "unique", unique);
+        return parameters;
+    }
 
-    // todo попробовать заменить тип на ResponseEntity<List<HitShortWithHitsDtoResponse>>
-    // и использовать метод template.getForObject вместо exchange (то есть ближе к предыщему методу)
-    // еще один вариант - возвращать ParameterizedTypeReference<List<HitShortWithHitsDtoResponse>>
-    // https://www.baeldung.com/spring-resttemplate-json-list
-    public ResponseEntity<Object> getStatObject(String start, String end, String[] uris, Boolean unique) {
-        Map<String, Object> parameters = Map.of("start", start, "end", end, "uris", uris, "unique", unique);
+    public List<HitShortWithHitsDtoResponse> getStatList(LocalDateTime start, LocalDateTime end,
+                                                                         String[] uris, Boolean unique) {
+        Map<String, Object> parameters = getParametersMap(start, end, uris, unique);
+        String path = "/stats?start={start}&end={end}&uris={uris}&unique={unique}";
+        ResponseEntity<List<HitShortWithHitsDtoResponse>> responseEntity = restTemplate.exchange(
+                path,
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<List<HitShortWithHitsDtoResponse>>() {},
+                parameters);
+        return responseEntity.getBody();
+    }
+
+    // Данный метод - альтернатива двум предыдущим методам getStatArray и getStatList.
+    // Работать с возвращаемым значением ResponseEntity<Object> не так удобно,
+    // поэтому метод в коде не вызывается. Код рабочий, метод проверен.
+    public ResponseEntity<Object> getStatObject(LocalDateTime start, LocalDateTime end, String[] uris,
+                                                Boolean unique) {
+        Map<String, Object> parameters = getParametersMap(start, end, uris, unique);
         String path = "/stats?start={start}&end={end}&uris={uris}&unique={unique}";
         return makeAndSendRequest(HttpMethod.GET, path, parameters, null);
     }
 
     // две взаимозаменяемых версии метода postStat (используются обе)
-
-    // todo можно улучшить; поменять String timestamp на LocalDateTime; тогда для вызова этого метода
-    // не нужно будет конвертировать дату в строку;
-    // для замены нужно будет также поменять тип поля в классе HitDtoRequest
-    // тогда по идее у нас будет здесь происходить сериализация HitDtoRequest в json строку в обычном формате
-    // даты (с буковой Т), а в контроллере статистики будет происходить десериализация json строки
-    // в дату; по идее везде должны действовать настройки по умолчанию (с буквой Т)
-    // но нужно проверить, что настройки главного сервиса (класс AppConfig) не вмешиваются в этот процесс
-    // иначе мы отсюда отправим дату в формате с пробелом вместо T, а контроллер статистики не сможет
-    // это десериализовать // todo по-английски будет Monolith
-    // todo не забыть про class HitMapper
-    public ResponseEntity<?> postStatMonolit(String app, String uri, String ip, String timestamp) {
-        HitDtoRequest hitDtoRequest = new HitDtoRequest(null, app, uri, ip, timestamp);
+    public ResponseEntity<?> postStatMonolith(String app, String uri, String ip, LocalDateTime timestamp) {
+        HitDtoRequest hitDtoRequest = new HitDtoRequest(null, app, uri, ip, timestamp.format(DATE_TIME_FORMATTER));
         HttpEntity<HitDtoRequest> httpEntity = new HttpEntity<>(hitDtoRequest);
         ResponseEntity<?> response = restTemplate.postForEntity("/hit", httpEntity, ResponseEntity.class);
         return response;
     }
 
-    public ResponseEntity<Object> postStat(String app, String uri, String ip, String timestamp) {
-        HitDtoRequest hitDtoRequest = new HitDtoRequest(null, app, uri, ip, timestamp);
+    public ResponseEntity<Object> postStat(String app, String uri, String ip, LocalDateTime timestamp) {
+        HitDtoRequest hitDtoRequest = new HitDtoRequest(null, app, uri, ip, timestamp.format(DATE_TIME_FORMATTER));
         return makeAndSendRequest(HttpMethod.POST, "/hit", null, hitDtoRequest);
     }
 

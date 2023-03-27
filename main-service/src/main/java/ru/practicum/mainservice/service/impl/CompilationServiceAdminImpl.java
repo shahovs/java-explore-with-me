@@ -30,10 +30,10 @@ public class CompilationServiceAdminImpl {
 
     @Transactional
     public CompilationDto saveCompilation(CompilationNewDto compilationNewDto) {
-        List<Event> events = eventRepository.findAllById(compilationNewDto.getEvents());
+        List<Event> events = eventRepository.findAllByIdIn(compilationNewDto.getEvents());
         Compilation compilation = compilationMapper.toEntity(compilationNewDto, events);
         compilationRepository.save(compilation);
-        List<EventShortDto> eventShortDtos = eventServicePublic.getEventShortDtos(events, false);
+        List<EventShortDto> eventShortDtos = eventServicePublic.mapToEventShortDtos(events);
         CompilationDto compilationDto = compilationMapper.toDto(compilation, eventShortDtos);
         return compilationDto;
     }
@@ -49,12 +49,11 @@ public class CompilationServiceAdminImpl {
             compilation.setPinned(compilationUpdateRequestDto.getPinned());
         }
         if (compilationUpdateRequestDto.getEvents() != null) {
-            List<Event> allEventsById = eventRepository.findAllById(compilationUpdateRequestDto.getEvents());
+            List<Event> allEventsById = eventRepository.findAllByIdIn(compilationUpdateRequestDto.getEvents());
             compilation.setEventsOfCompilation(allEventsById);
         }
         compilationRepository.save(compilation);
-        List<EventShortDto> eventShortDtos = eventServicePublic.getEventShortDtos(compilation.getEventsOfCompilation(),
-                false);
+        List<EventShortDto> eventShortDtos = eventServicePublic.mapToEventShortDtos(compilation.getEventsOfCompilation());
         CompilationDto compilationDto = compilationMapper.toDto(compilation, eventShortDtos);
         return compilationDto;
     }
