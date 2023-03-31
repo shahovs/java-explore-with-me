@@ -1,6 +1,7 @@
 package ru.practicum.mainservice.model;
 
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
@@ -57,6 +58,7 @@ public class Event {
     private Boolean requestModeration;
 
     @Column(name = "created_on")
+    @CreationTimestamp
     private LocalDateTime createdOn;
 
     @Column(name = "published_on")
@@ -72,8 +74,5 @@ public class Event {
 
     @OneToMany(mappedBy = "event")
     private List<ParticipationRequest> requests;
-
-//    @ManyToMany(mappedBy = "eventsOfCompilation")
-//    private List<Compilation> myCompilations;
 
 }

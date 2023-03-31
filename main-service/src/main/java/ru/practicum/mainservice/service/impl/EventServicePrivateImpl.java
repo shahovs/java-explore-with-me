@@ -94,11 +94,7 @@ public class EventServicePrivateImpl {
         User initiator = userRepository.findById(initiatorId).orElseThrow(
                 () -> new ObjectNotFoundException("Инициатор события не найден"));
         Event event = eventMapper.toEntity(eventNewDto, initiator);
-        event.setCreatedOn(LocalDateTime.now());
         event.setState(EventState.PENDING);
-        // todo А можно ли как-то добавить в базу новую сущность Event,
-        // не запрашивая из базы User и Category, а передав только их id (которые к нам пришли вместе с dto)?
-        // Так чтобы не писать запрос вручную, конечно.
         eventRepository.save(event);
         return eventMapper.toEventFullDto(event);
     }

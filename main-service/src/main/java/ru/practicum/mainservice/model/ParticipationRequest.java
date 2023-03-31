@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.hibernate.annotations.CreationTimestamp;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
@@ -29,6 +30,7 @@ public class ParticipationRequest {
     @JoinColumn(name = "event_id", nullable = false)
     private Event event;
 
+    @CreationTimestamp
     private LocalDateTime created;
 
     @Enumerated(EnumType.STRING)
@@ -38,7 +40,6 @@ public class ParticipationRequest {
     public ParticipationRequest(User requester, Event event) {
         this.requester = requester;
         this.event = event;
-        created = LocalDateTime.now();
         if (event.getRequestModeration()) {
             status = ParticipationRequestStatus.PENDING;
         } else {

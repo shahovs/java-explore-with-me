@@ -20,7 +20,7 @@ public class AppConfig {
 
     @Bean
     public Jackson2ObjectMapperBuilderCustomizer jsonCustomizer() {
-        String DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm:ss";
+        final String DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm:ss";
         return jacksonObjectMapperBuilder -> {
             jacksonObjectMapperBuilder.simpleDateFormat(DATE_TIME_FORMAT);
             jacksonObjectMapperBuilder.serializers(
@@ -29,18 +29,6 @@ public class AppConfig {
                     new LocalDateTimeDeserializer(DateTimeFormatter.ofPattern(DATE_TIME_FORMAT)));
         };
     }
-
-//    @Bean
-//    public Jackson2ObjectMapperBuilderCustomizer jsonCustomizer() {
-//        String DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm:ss";
-//        return jacksonObjectMapperBuilder -> {
-//            jacksonObjectMapperBuilder.simpleDateFormat(DATE_TIME_FORMAT);
-//            jacksonObjectMapperBuilder.serializers(
-//                    new LocalDateTimeSerializer(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
-//            jacksonObjectMapperBuilder.deserializers(
-//                    new LocalDateTimeDeserializer(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
-//        };
-//    }
 
     @Bean
     public StatsClient baseClient(@Value("${stats-server.url}") String serverUrl, RestTemplateBuilder builder) {

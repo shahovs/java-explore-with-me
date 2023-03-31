@@ -12,10 +12,6 @@ import javax.validation.constraints.NotNull;
 @Setter
 @ToString
 @Embeddable
-//@AttributeOverrides({
-//        @AttributeOverride( name = "lat", column = @Column(name = "lat")),
-//        @AttributeOverride( name = "lon", column = @Column(name = "lon"))
-//})
 public class Location {
 
     @NotNull(message = "lat can't be null", groups = {Create.class})
@@ -25,20 +21,3 @@ public class Location {
     private Float lon;
 
 }
-
-/*
-@Entity
-@Table(name = "locations")
-public class Location {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(nullable = false)
-    private Float lat;
-
-    @Column(nullable = false)
-    private Float lon;
-
-}*/

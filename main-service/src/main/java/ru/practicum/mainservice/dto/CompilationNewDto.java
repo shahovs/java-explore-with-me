@@ -18,6 +18,6 @@ public class CompilationNewDto {
 
     private Boolean pinned;
 
-    private List<Long> events; // значения должны быть уникальными (возможно, Set будет лучше)
+    private List<Long> events;
 
 }

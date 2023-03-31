@@ -6,10 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import ru.practicum.mainservice.Create;
 import ru.practicum.mainservice.dto.CategoryDto;
-import ru.practicum.mainservice.dto.UserDto;
-import ru.practicum.mainservice.service.impl.CategoryServiceAdminImpl;
 import ru.practicum.mainservice.service.impl.CategoryServicePublicImpl;
 
 import javax.validation.constraints.Positive;

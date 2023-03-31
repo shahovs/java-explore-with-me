@@ -6,11 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import ru.practicum.mainservice.Create;
-import ru.practicum.mainservice.dto.CategoryDto;
 import ru.practicum.mainservice.dto.CompilationDto;
-import ru.practicum.mainservice.dto.CompilationNewDto;
-import ru.practicum.mainservice.service.impl.CompilationServiceAdminImpl;
 import ru.practicum.mainservice.service.impl.CompilationServicePublicImpl;
 
 import javax.validation.constraints.Positive;
@@ -27,10 +23,10 @@ public class CompilationControllerPublic {
     private final CompilationServicePublicImpl compilationServicePublic;
 
     @GetMapping
-    ResponseEntity<List<CompilationDto>> getAllCompilations(@RequestParam(defaultValue = "false") Boolean pinned,
-                                                            @PositiveOrZero @RequestParam(name = "from",
-                                                                    defaultValue = "0") Integer fromElement,
-                                                            @Positive @RequestParam(defaultValue = "10") Integer size) {
+    ResponseEntity<List<CompilationDto>> getAllCompilations(
+            @RequestParam(defaultValue = "false") Boolean pinned,
+            @PositiveOrZero @RequestParam(name = "from", defaultValue = "0") Integer fromElement,
+            @Positive @RequestParam(defaultValue = "10") Integer size) {
         log.info("\n\nПолучен запрос к эндпоинту: GET /compilations, pinned={}, from={}, size={}",
                 pinned, fromElement, size);
         List<CompilationDto> result = compilationServicePublic.getAllCompilations(pinned, fromElement, size);

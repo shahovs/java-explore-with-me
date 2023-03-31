@@ -6,7 +6,6 @@ import lombok.ToString;
 import ru.practicum.mainservice.Update;
 import ru.practicum.mainservice.model.Location;
 
-import javax.validation.constraints.Future;
 import javax.validation.constraints.PositiveOrZero;
 import javax.validation.constraints.Size;
 import java.time.LocalDateTime;
@@ -27,8 +26,6 @@ public class EventUpdateAdminRequestDto {
 
     private Long category;
 
-    // todo можно ли как-то задать статус ответа (conflict вместо bad request)??? // иначе тесты не проходят
-//    @Future(message = "eventDate must be in future (min 2 hours from now)", groups = {Update.class})
     private LocalDateTime eventDate;
 
     private Location location;

@@ -17,6 +17,7 @@ import java.util.List;
 public class StatsController {
 
     private final StatsService statsService;
+
     @GetMapping(path = "/stats")
     List<HitShortWithHitsDtoResponse> getHits(@RequestParam String start,
                                               @RequestParam String end,

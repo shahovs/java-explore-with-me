@@ -66,7 +66,7 @@ public class StatsClient {
         return makeAndSendRequest(HttpMethod.GET, path, parameters, null);
     }
 
-    // две взаимозаменяемых версии метода postStat (используются обе)
+    // две взаимозаменяемых версии метода postStat (используются оба)
     public ResponseEntity<?> postStatMonolith(String app, String uri, String ip, LocalDateTime timestamp) {
         HitDtoRequest hitDtoRequest = new HitDtoRequest(null, app, uri, ip, timestamp.format(DATE_TIME_FORMATTER));
         HttpEntity<HitDtoRequest> httpEntity = new HttpEntity<>(hitDtoRequest);

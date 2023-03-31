@@ -15,8 +15,6 @@ import ru.practicum.mainservice.exception.*;
 @Slf4j
 public class ErrorHandler {
 
-    //todo разобраться, что такое http://localhost:9090/actuator/health и что еще полезного в актуаторе
-
     @ExceptionHandler
     public ResponseEntity<ErrorResponse> handleObjectDidntFoundException(final ObjectNotFoundException e) {
         log.info("404 {}", e.getMessage(), e);

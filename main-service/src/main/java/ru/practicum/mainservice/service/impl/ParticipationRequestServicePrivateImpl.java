@@ -3,9 +3,7 @@ package ru.practicum.mainservice.service.impl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.practicum.mainservice.dto.EventWithConfirmedRequestsDto;
 import ru.practicum.mainservice.dto.ParticipationRequestDto;
-import ru.practicum.mainservice.exception.ConflictException;
 import ru.practicum.mainservice.exception.ObjectNotFoundException;
 import ru.practicum.mainservice.exception.ValidateException;
 import ru.practicum.mainservice.mapper.ParticipationRequestMapper;
@@ -14,9 +12,6 @@ import ru.practicum.mainservice.repository.EventRepository;
 import ru.practicum.mainservice.repository.ParticipationRequestRepository;
 import ru.practicum.mainservice.repository.UserRepository;
 
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
