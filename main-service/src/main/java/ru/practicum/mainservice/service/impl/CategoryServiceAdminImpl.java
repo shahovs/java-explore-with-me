@@ -17,8 +17,7 @@ import ru.practicum.mainservice.repository.CategoryRepository;
 public class CategoryServiceAdminImpl {
 
     private final CategoryRepository categoryRepository;
-    // в категориях используем ModelMapper (в учебных целях),
-    // а для остальных сущностей используем org.mapstruct.Mapper
+    // в категориях используем ModelMapper, а для остальных сущностей используем org.mapstruct.Mapper
     private final ModelMapper modelMapper;
 
     @Transactional

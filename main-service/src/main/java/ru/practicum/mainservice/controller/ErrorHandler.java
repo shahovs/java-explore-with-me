@@ -72,6 +72,14 @@ public class ErrorHandler {
     }
 
     @ExceptionHandler
+    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(final IllegalArgumentException e) {
+        log.info("409 {}", e.getMessage(), e);
+        final HttpStatus status = HttpStatus.CONFLICT;
+        ErrorResponse errorResponse = new ErrorResponse(e, status, "Ошибка. IllegalArgumentException");
+        return new ResponseEntity<>(errorResponse, status);
+    }
+
+    @ExceptionHandler
     public ResponseEntity<ErrorResponse> handleDataIntegrityViolationException(final DataIntegrityViolationException e) {
         log.info("409 {}", e.getMessage(), e);
         final HttpStatus status = HttpStatus.CONFLICT;

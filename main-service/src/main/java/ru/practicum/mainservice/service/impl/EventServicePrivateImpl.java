@@ -89,7 +89,7 @@ public class EventServicePrivateImpl {
     @Transactional
     public EventFullDto saveEvent(Long initiatorId, EventNewDto eventNewDto) {
         if (eventNewDto.getEventDate().isBefore(LocalDateTime.now().plus(2, ChronoUnit.HOURS))) {
-            throw new ValidateException("Событие не может быть раньше, чем через два часа от текущего момента");
+            throw new IllegalArgumentException("Событие не может быть раньше, чем через два часа от текущего момента");
         }
         User initiator = userRepository.findById(initiatorId).orElseThrow(
                 () -> new ObjectNotFoundException("Инициатор события не найден"));
@@ -224,8 +224,9 @@ public class EventServicePrivateImpl {
 
         partRequestRepository.saveAll(changingRequests);
 
-        Map<Boolean, List<ParticipationRequestDto>> requestDtos = changingRequests.stream()
-                .map(participationRequestMapper::toDto)
+        Map<Boolean, List<EventRequestStatusUpdateResultDto.ParticipationRequestDto>> requestDtos =
+                changingRequests.stream()
+                .map(participationRequestMapper::toUpdateDto)
                 .collect(Collectors.partitioningBy(
                         request -> Objects.equals(request.getStatus(), ParticipationRequestStatus.CONFIRMED)));
 

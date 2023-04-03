@@ -35,8 +35,10 @@ public class Compilation {
     @Column(name = "compilation_id")
     private Long id;
 
+    @Column(nullable = false, length = 80)
     private String title;
 
+    @Column(nullable = false)
     private Boolean pinned;
 
     @ManyToMany

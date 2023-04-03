@@ -32,10 +32,6 @@ public class EventNewDto {
     private Long category;
 
     @NotNull(message = "eventDate can't be null", groups = {Create.class})
-    // Можно ли как-то задать статус ответа (conflict вместо bad request)? Иначе тесты не проходят.
-    // А если в классе ErrorHandler задать conflict, то не пройдут другие тесты - на некорректный body
-    // (они ждут, наоборот, bad request)
-//    @Future(message = "eventDate must be in future (min 2 hours from now)", groups = {Create.class})
     private LocalDateTime eventDate;
 
     @NotNull(message = "location can't be null", groups = {Create.class})

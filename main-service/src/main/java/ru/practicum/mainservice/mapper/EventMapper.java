@@ -19,7 +19,6 @@ public interface EventMapper {
     @Mapping(target = "category", source = "eventNewDto.category")
     @Mapping(target = "initiator", source = "initiator")
     // Категория берется с помощью метода в классе CategoryServiceAdminImpl, указанном в аннтотации к этому классу
-    // (наверное, не самый лучший способ, но оставлен здесь в качестве учебного примера)
     // В остальных случаях необходимые сущности передаются вторым, третьим и т.д. аргументами - например, как с User)
     Event toEntity(EventNewDto eventNewDto, User initiator);
 

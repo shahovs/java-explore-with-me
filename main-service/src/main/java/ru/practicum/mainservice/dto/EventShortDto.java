@@ -1,9 +1,11 @@
 package ru.practicum.mainservice.dto;
 
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 import ru.practicum.mainservice.Create;
+import ru.practicum.mainservice.Update;
 
 import javax.validation.constraints.NotNull;
 import java.time.LocalDateTime;
@@ -11,6 +13,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @ToString
+@NoArgsConstructor
 public class EventShortDto {
 
     private Long id;
@@ -37,7 +40,25 @@ public class EventShortDto {
 
     private Long views;
 
-    public EventShortDto() {
+    @Getter
+    @Setter
+    public static class CategoryDto {
+
+        private Long id;
+
+        @NotNull(groups = {Create.class, Update.class})
+        private String name;
+    }
+
+    @Getter
+    @Setter
+    public static class UserShortDto {
+
+        @NotNull(groups = {Create.class})
+        private Long id;
+
+        @NotNull(groups = {Create.class})
+        private String name;
     }
 
 }

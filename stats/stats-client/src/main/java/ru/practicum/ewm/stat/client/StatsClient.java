@@ -57,8 +57,6 @@ public class StatsClient {
     }
 
     // Данный метод - альтернатива двум предыдущим методам getStatArray и getStatList.
-    // Работать с возвращаемым значением ResponseEntity<Object> не так удобно,
-    // поэтому метод в коде не вызывается. Код рабочий, метод проверен.
     public ResponseEntity<Object> getStatObject(LocalDateTime start, LocalDateTime end, String[] uris,
                                                 Boolean unique) {
         Map<String, Object> parameters = getParametersMap(start, end, uris, unique);

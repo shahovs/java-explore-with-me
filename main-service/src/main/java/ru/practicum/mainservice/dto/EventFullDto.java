@@ -5,6 +5,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 import ru.practicum.mainservice.Create;
+import ru.practicum.mainservice.Update;
 import ru.practicum.mainservice.model.*;
 
 import javax.validation.constraints.NotNull;
@@ -56,30 +57,25 @@ public class EventFullDto {
 
     private Long views;
 
-    public EventFullDto(
-            Long id, String title, String annotation, String description,
-            Long categoryId, String categoryName,
-            LocalDateTime eventDate, Location location, Boolean paid, Integer participantLimit,
-            Boolean requestModeration, java.time.LocalDateTime createdOn, LocalDateTime publishedOn,
-            Long userId, String userName,
-            EventState state,
-            Long confirmedRequests) {
-        this.id = id;
-        this.title = title;
-        this.annotation = annotation;
-        this.description = description;
-        this.category = new CategoryDto(categoryId, categoryName);
-        this.eventDate = eventDate;
-        this.location = location;
-        this.paid = paid;
-        this.participantLimit = participantLimit;
-        this.requestModeration = requestModeration;
-        this.createdOn = createdOn;
-        this.publishedOn = publishedOn;
-        this.initiator = new UserShortDto(userId, userName);
-        this.state = state;
-        this.confirmedRequests = confirmedRequests;
-        this.views = null;
+    @Getter
+    @Setter
+    public static class CategoryDto {
+
+        private Long id;
+
+        @NotNull(groups = {Create.class, Update.class})
+        private String name;
+    }
+
+    @Getter
+    @Setter
+    public static class UserShortDto {
+
+        @NotNull(groups = {Create.class})
+        private Long id;
+
+        @NotNull(groups = {Create.class})
+        private String name;
     }
 
 }
