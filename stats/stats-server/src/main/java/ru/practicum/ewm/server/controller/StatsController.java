@@ -21,7 +21,7 @@ public class StatsController {
     @GetMapping(path = "/stats")
     List<HitShortWithHitsDtoResponse> getHits(@RequestParam String start,
                                               @RequestParam String end,
-                                              @RequestParam(required = false) String[] uris, // или defaultValue = "null" ?
+                                              @RequestParam(required = false) List<String> uris,
                                               @RequestParam(defaultValue = "false") Boolean unique) {
         log.info("\n\nПолучен запрос к эндпоинту: GET /stats, \nstart: {}, end: {}, uris: {}, unique: {}\n",
                 start, end, uris, unique);

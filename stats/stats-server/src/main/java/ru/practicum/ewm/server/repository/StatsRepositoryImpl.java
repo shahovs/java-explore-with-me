@@ -24,28 +24,33 @@ public class StatsRepositoryImpl implements StatsRepositoryCustom {
 
     @Override
     public List<HitShortWithHitsDtoResponse> findAllWithHits(LocalDateTime startTime, LocalDateTime endTime,
-                                                             String[] uris, Boolean unique) {
+                                                             List<String> uris, Boolean unique) {
+        // подготовливаем основу для запроса
         CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
         CriteriaQuery<HitShortWithHitsDtoResponse> criteriaQuery =
                 criteriaBuilder.createQuery(HitShortWithHitsDtoResponse.class);
         Root<Hit> root = criteriaQuery.from(Hit.class);
 
+        // создаем предикаты для where
         List<Predicate> predicates = new ArrayList<>();
         predicates.add(criteriaBuilder.between(root.get("requestTimeStamp"), startTime, endTime));
-        if (uris != null) {
-            List<String> urisList = List.of(uris);
-            predicates.add(root.get("uri").in(urisList));
+
+        if (uris != null && uris.size() != 0) {
+            predicates.add(root.get("uri").in(uris));
         }
         criteriaQuery.where(predicates.toArray(new Predicate[0]));
 
+        // указываем что брать (select)
         criteriaQuery.multiselect(root.get("app"), root.get("uri"),
                 unique != null && unique
                 ? criteriaBuilder.countDistinct(root.get("ip"))
                 : criteriaBuilder.count(root.get("ip")));
 
+        // group and order
         criteriaQuery.groupBy(root.get("uri"), root.get("app"));
         criteriaQuery.orderBy(criteriaBuilder.desc(criteriaBuilder.literal(3)));
 
+        // создаем запрос и отправляем
         TypedQuery<HitShortWithHitsDtoResponse> query = entityManager.createQuery(criteriaQuery);
         List<HitShortWithHitsDtoResponse> resultList = query.getResultList();
         return resultList;

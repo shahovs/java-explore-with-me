@@ -24,15 +24,20 @@ public class StatsService {
         statsRepository.save(HitMapper.toHit(hitDtoRequest));
     }
 
-    public List<HitShortWithHitsDtoResponse> getHits(String start, String end, String[] uris, Boolean unique) {
+    public List<HitShortWithHitsDtoResponse> getHits(String start, String end, List<String> uris, Boolean unique) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        LocalDateTime startTime = LocalDateTime.parse(start, formatter);
+        LocalDateTime endTime = LocalDateTime.parse(end, formatter);
+        return statsRepository.findAllWithHits(startTime, endTime, uris, unique);
+    }
+
+    // старая реализация метода getHits (работает без ошибок):
+    public List<HitShortWithHitsDtoResponse> getHitsOldVersion(String start, String end, List<String> uris, Boolean unique) {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         LocalDateTime startTime = LocalDateTime.parse(start, formatter);
         LocalDateTime endTime = LocalDateTime.parse(end, formatter);
 
-        return statsRepository.findAllWithHits(startTime, endTime, uris, unique);
-
-        // старая реализация (работает без ошибок):
-/*        List<HitShortWithHitsDtoResponse> resultList;
+        List<HitShortWithHitsDtoResponse> resultList;
 
         if (uris == null && !unique) { // первый случай
             resultList = statsRepository.getAllByRequestTimeStampIn(startTime, endTime);
@@ -42,20 +47,16 @@ public class StatsService {
         if (uris == null) { // if (uris == null && unique) второй случай
             resultList = statsRepository.getAllByRequestTimeStampInUnique(startTime, endTime);
             return resultList;
-
         }
 
-        // if (uris != null) третий и четвертый случаи
-        List<String> urisList = List.of(uris);
-
         if (!unique) { // if (uris != null && !unique) // третий случай
-            resultList = statsRepository.getAllByRequestTimeStampInAndUris(startTime, endTime, urisList);
+            resultList = statsRepository.getAllByRequestTimeStampInAndUris(startTime, endTime, uris);
             return resultList;
         }
 
         // if (uris != null && unique) // четвертый случай
-        resultList = statsRepository.getAllByRequestTimeStampInAndUrisUnique(startTime, endTime, urisList);
-        return resultList;*/
+        resultList = statsRepository.getAllByRequestTimeStampInAndUrisUnique(startTime, endTime, uris);
+        return resultList;
     }
 
 }
