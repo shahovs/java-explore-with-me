@@ -91,6 +91,11 @@
             <version>${querydsl.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.modelmapper</groupId>
+            <artifactId>modelmapper</artifactId>
+        </dependency>
+
     </dependencies>
 
     <build>
