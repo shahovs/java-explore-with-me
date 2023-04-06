@@ -29,13 +29,12 @@ public class CommentControllerPublic {
         return new ResponseEntity<>(result, HttpStatus.OK);
     }
 
-    @GetMapping(path = "event/{eventId}")
+    @GetMapping(path = "/event/{eventId}")
     ResponseEntity<List<CommentDto>> getCommentsByEvent(@PathVariable Long eventId,
-                                                        @RequestParam(defaultValue = "0") int from,
+                                                        @RequestParam(defaultValue = "0") int from, // - from Page
                                                         @RequestParam(defaultValue = "10") int size) {
         log.info("\n\nПолучен запрос к эндпоинту: GET comments/event/{}\n", eventId);
-        int fromPage = from / size;
-        Pageable pageable = PageRequest.of(fromPage, size);
+        Pageable pageable = PageRequest.of(from, size);
         List<CommentDto> result = commentServicePublic.getCommentsByEvent(eventId, pageable);
         return new ResponseEntity<>(result, HttpStatus.OK);
     }
